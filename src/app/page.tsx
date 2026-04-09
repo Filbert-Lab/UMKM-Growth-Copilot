@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { AdvancedTools } from "./advanced-tools";
 
 type ChatRole = "user" | "assistant";
 
@@ -251,6 +252,20 @@ export default function Home() {
     window.setTimeout(() => {
       setHighlightTemplate((current) => (current === text ? null : current));
     }, 650);
+
+    window.requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+    });
+  }
+
+  function injectPromptFromTools(text: string) {
+    setDraft((current) => {
+      if (!current) {
+        return text;
+      }
+
+      return `${current}\n${text}`;
+    });
 
     window.requestAnimationFrame(() => {
       textareaRef.current?.focus();
@@ -585,7 +600,7 @@ export default function Home() {
           </div>
 
           <h3 className="mt-6 text-lg font-semibold text-[#2f1a17]">
-            Fitur Aktif MVP
+            Fitur Aktif Saat Ini
           </h3>
           <ul className="mt-3 space-y-2 text-sm text-[#5a3f3b]">
             <li>- Chat AI realtime dengan Gemini API</li>
@@ -594,7 +609,18 @@ export default function Home() {
             <li>- Export konsultasi ke file Markdown</li>
             <li>- Prompt template siap pakai</li>
             <li>- Statistik sesi dan estimasi token</li>
+            <li>- KPI generator, campaign planner, dan content planner</li>
+            <li>- Break-even analyzer dan cashflow alert</li>
+            <li>- Product bundling recommender</li>
+            <li>- Customer persona builder</li>
+            <li>- Loan readiness scoring</li>
+            <li>- Team workspace untuk kolaborasi insight</li>
           </ul>
+
+          <AdvancedTools
+            settings={settings}
+            onInjectPrompt={injectPromptFromTools}
+          />
 
           <p className="mt-6 rounded-xl border border-[#e0b8aa] bg-[#fff6ef] p-3 text-xs leading-relaxed text-[#6e3d35]">
             Catatan: aplikasi ini dirancang sebagai fondasi AI Tool UMKM yang
