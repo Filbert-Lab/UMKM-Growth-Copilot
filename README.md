@@ -99,7 +99,7 @@ npm install
 
 ```bash
 GEMINI_API_KEY=YOUR_GEMINI_API_KEY
-GEMINI_MODEL=gemini-2.0-flash
+GEMINI_MODEL=gemini-2.5-flash
 ```
 
 3. Jalankan development server:
@@ -116,7 +116,7 @@ npm run dev
 2. Login ke Vercel dan Import Project dari repository GitHub.
 3. Tambahkan environment variables di Vercel Project Settings:
    - `GEMINI_API_KEY`
-   - `GEMINI_MODEL` (opsional, default `gemini-2.0-flash`)
+   - `GEMINI_MODEL` (opsional, default `gemini-2.5-flash`)
 4. Klik Deploy.
 
 ### Link Repository

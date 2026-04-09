@@ -23,9 +23,9 @@ type ChatRequestBody = {
 };
 
 const FALLBACK_MODELS = [
+  "gemini-2.5-flash",
   "gemini-2.0-flash",
   "gemini-2.0-flash-lite",
-  "gemini-1.5-flash-latest",
 ];
 
 function clamp(value: number, min: number, max: number) {
@@ -67,6 +67,19 @@ function isModelUnavailableError(error: unknown) {
     text.includes("not found") ||
     text.includes("unsupported") ||
     text.includes("model")
+  );
+}
+
+function isRetryableModelError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const text = error.message.toLowerCase();
+  return (
+    text.includes("429") ||
+    text.includes("resource exhausted") ||
+    text.includes("quota")
   );
 }
 
@@ -135,9 +148,11 @@ ${message}`;
 
     const client = new GoogleGenerativeAI(apiKey);
 
-    let result:
-      | Awaited<ReturnType<ReturnType<typeof client.getGenerativeModel>["generateContent"]>>
-      | null = null;
+    let result: Awaited<
+      ReturnType<
+        ReturnType<typeof client.getGenerativeModel>["generateContent"]
+      >
+    > | null = null;
     let lastError: unknown = null;
 
     for (const modelName of modelCandidates) {
@@ -154,7 +169,7 @@ ${message}`;
         break;
       } catch (error) {
         lastError = error;
-        if (!isModelUnavailableError(error)) {
+        if (!isModelUnavailableError(error) && !isRetryableModelError(error)) {
           throw error;
         }
       }
@@ -162,11 +177,13 @@ ${message}`;
 
     if (!result) {
       const detail =
-        lastError instanceof Error ? lastError.message : "Tidak ada detail error.";
+        lastError instanceof Error
+          ? lastError.message
+          : "Tidak ada detail error.";
       return NextResponse.json(
         {
           error:
-            "Model Gemini tidak tersedia. Set GEMINI_MODEL ke gemini-2.0-flash di Vercel Environment Variables, lalu redeploy. Detail: " +
+            "Model Gemini tidak tersedia. Set GEMINI_MODEL ke gemini-2.5-flash di Vercel Environment Variables, lalu redeploy. Detail: " +
             detail,
         },
         { status: 502 },
