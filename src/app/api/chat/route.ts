@@ -44,18 +44,6 @@ function maxOutputTokens(length: ChatSettings["responseLength"]) {
   }
 }
 
-function minimumWordTarget(length: ChatSettings["responseLength"]) {
-  switch (length) {
-    case "short":
-      return 80;
-    case "long":
-      return 380;
-    case "medium":
-    default:
-      return 220;
-  }
-}
-
 function responseLengthGuidance(length: ChatSettings["responseLength"]) {
   switch (length) {
     case "short":
@@ -66,13 +54,6 @@ function responseLengthGuidance(length: ChatSettings["responseLength"]) {
     default:
       return "Targetkan jawaban 220-350 kata dengan kedalaman yang aplikatif.";
   }
-}
-
-function countWords(text: string) {
-  return text
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean).length;
 }
 
 function serializeHistory(history: RequestMessage[] = []) {
@@ -112,6 +93,69 @@ function isRetryableModelError(error: unknown) {
     text.includes("resource exhausted") ||
     text.includes("quota")
   );
+}
+
+function isQuotaExceededError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const text = error.message.toLowerCase();
+  return (
+    text.includes("429") ||
+    text.includes("quota exceeded") ||
+    text.includes("resource exhausted")
+  );
+}
+
+function extractRetryDelaySeconds(error: unknown) {
+  if (!(error instanceof Error)) {
+    return null;
+  }
+
+  const message = error.message;
+  const patterns = [
+    /retry in\s+([0-9]+(?:\.[0-9]+)?)s/i,
+    /"retryDelay"\s*:\s*"([0-9]+(?:\.[0-9]+)?)s"/i,
+    /retrydelay":"([0-9]+(?:\.[0-9]+)?)s"/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = message.match(pattern);
+    if (match?.[1]) {
+      const value = Number(match[1]);
+      if (!Number.isNaN(value) && value > 0) {
+        return Math.ceil(value);
+      }
+    }
+  }
+
+  return null;
+}
+
+function toUserFriendlyError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return "Terjadi kesalahan internal saat memproses permintaan.";
+  }
+
+  if (isQuotaExceededError(error)) {
+    const retryIn = extractRetryDelaySeconds(error);
+    const waitHint = retryIn
+      ? ` Coba lagi dalam sekitar ${retryIn} detik.`
+      : " Coba lagi dalam 1-2 menit.";
+
+    return (
+      "Kuota Gemini sedang penuh (rate limit)." +
+      waitHint +
+      " Jika sering terjadi, gunakan GEMINI_MODEL=gemini-2.5-flash di Vercel."
+    );
+  }
+
+  if (isModelUnavailableError(error)) {
+    return "Model Gemini tidak tersedia. Gunakan GEMINI_MODEL=gemini-2.5-flash lalu redeploy.";
+  }
+
+  return "Terjadi kendala pada layanan AI. Silakan coba lagi sebentar lagi.";
 }
 
 function buildModelCandidates(preferredModel?: string) {
@@ -185,7 +229,6 @@ ${message}`;
         ReturnType<typeof client.getGenerativeModel>["generateContent"]
       >
     > | null = null;
-    let usedModelName: string | null = null;
     let lastError: unknown = null;
 
     for (const modelName of modelCandidates) {
@@ -199,7 +242,6 @@ ${message}`;
             maxOutputTokens: maxOutputTokens(responseLength),
           },
         });
-        usedModelName = modelName;
         break;
       } catch (error) {
         lastError = error;
@@ -210,21 +252,16 @@ ${message}`;
     }
 
     if (!result) {
-      const detail =
-        lastError instanceof Error
-          ? lastError.message
-          : "Tidak ada detail error.";
+      const status = isQuotaExceededError(lastError) ? 429 : 502;
       return NextResponse.json(
         {
-          error:
-            "Model Gemini tidak tersedia. Set GEMINI_MODEL ke gemini-2.5-flash di Vercel Environment Variables, lalu redeploy. Detail: " +
-            detail,
+          error: toUserFriendlyError(lastError),
         },
-        { status: 502 },
+        { status },
       );
     }
 
-    let reply = result.response.text()?.trim();
+    const reply = result.response.text()?.trim();
     if (!reply) {
       return NextResponse.json(
         { error: "Model tidak mengembalikan jawaban. Coba lagi." },
@@ -232,52 +269,9 @@ ${message}`;
       );
     }
 
-    const minWords = minimumWordTarget(responseLength);
-    const currentWordCount = countWords(reply);
-
-    if (
-      responseLength !== "short" &&
-      currentWordCount < minWords &&
-      usedModelName
-    ) {
-      try {
-        const expansionModel = client.getGenerativeModel({
-          model: usedModelName,
-        });
-        const expansionPrompt = `
-Perluas jawaban berikut agar lebih detail dan aplikatif.
-Jaga tetap relevan dengan konteks UMKM pengguna.
-Target minimal ${minWords} kata.
-
-Pertanyaan pengguna:
-${message}
-
-Jawaban awal:
-${reply}
-`.trim();
-
-        const expanded = await expansionModel.generateContent({
-          contents: [{ role: "user", parts: [{ text: expansionPrompt }] }],
-          generationConfig: {
-            temperature: clamp(settings.temperature ?? 0.6, 0, 1),
-            topP: 0.9,
-            maxOutputTokens: maxOutputTokens(responseLength),
-          },
-        });
-
-        const expandedText = expanded.response.text()?.trim();
-        if (expandedText && countWords(expandedText) > currentWordCount) {
-          reply = expandedText;
-        }
-      } catch {
-        // Keep original answer if expansion fails.
-      }
-    }
-
     return NextResponse.json({ reply });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Terjadi kesalahan internal.";
+    const message = toUserFriendlyError(error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
