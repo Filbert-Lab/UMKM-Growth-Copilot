@@ -11,14 +11,14 @@ AI tool berbasis web untuk membantu pelaku UMKM mengambil keputusan bisnis secar
 
 ## Checklist Kesesuaian Dengan Instruksi Dosen
 
-| No  | Kebutuhan Tugas                                  | Status                  |
-| --- | ------------------------------------------------ | ----------------------- |
-| 1   | Menjelaskan ide project AI                       | Terpenuhi               |
+| No  | Kebutuhan Tugas                                  | Status                               |
+| --- | ------------------------------------------------ | ------------------------------------ |
+| 1   | Menjelaskan ide project AI                       | Terpenuhi                            |
 | 2   | Menyediakan minimal 20 fitur penting             | Terpenuhi (24 fitur terimplementasi) |
-| 3   | Menyediakan timeline per fitur                   | Terpenuhi (24 timeline) |
-| 4   | Project dibuat di GitHub                         | Terpenuhi               |
-| 5   | Menyertakan link GitHub + detail fitur di README | Terpenuhi               |
-| 6   | Submit cukup oleh perwakilan kelompok            | Siap dilakukan          |
+| 3   | Menyediakan timeline per fitur                   | Terpenuhi (24 timeline)              |
+| 4   | Project dibuat di GitHub                         | Terpenuhi                            |
+| 5   | Menyertakan link GitHub + detail fitur di README | Terpenuhi                            |
+| 6   | Submit cukup oleh perwakilan kelompok            | Siap dilakukan                       |
 
 Catatan administrasi:
 
