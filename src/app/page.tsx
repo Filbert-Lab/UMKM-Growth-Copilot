@@ -1,6 +1,13 @@
 "use client";
 
-import { FormEvent, KeyboardEvent, useEffect, useMemo, useState } from "react";
+import {
+  FormEvent,
+  KeyboardEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 type ChatRole = "user" | "assistant";
 
@@ -84,6 +91,7 @@ export default function Home() {
   const [draft, setDraft] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const requestLockRef = useRef(false);
 
   useEffect(() => {
     const storedMessages = window.localStorage.getItem(MESSAGE_STORAGE);
@@ -137,9 +145,26 @@ export default function Home() {
     event?.preventDefault();
 
     const trimmed = draft.trim();
-    if (!trimmed || isLoading) {
+    if (!trimmed || isLoading || requestLockRef.current) {
       return;
     }
+
+    const lastUserMessage = [...messages]
+      .reverse()
+      .find((item) => item.role === "user");
+
+    if (lastUserMessage) {
+      const sameContent =
+        lastUserMessage.content.trim().toLowerCase() ===
+        trimmed.trim().toLowerCase();
+      const ageMs = Date.now() - new Date(lastUserMessage.createdAt).getTime();
+      if (sameContent && ageMs < 2500) {
+        setError("Prompt yang sama baru saja terkirim. Tunggu sebentar.");
+        return;
+      }
+    }
+
+    requestLockRef.current = true;
 
     const userMessage: ChatMessage = {
       id: createId(),
@@ -191,6 +216,7 @@ export default function Home() {
       setError(errorMessage);
     } finally {
       setIsLoading(false);
+      requestLockRef.current = false;
     }
   }
 

@@ -69,6 +69,52 @@ function serializeHistory(history: RequestMessage[] = []) {
     .join("\n");
 }
 
+function sanitizeHistory(history: RequestMessage[] = [], currentMessage?: string) {
+  if (!Array.isArray(history)) {
+    return [] as RequestMessage[];
+  }
+
+  const cleaned = history
+    .filter((item) => item && item.content && item.content.trim().length > 0)
+    .filter((item) => {
+      const text = item.content.toLowerCase();
+      return !(
+        item.role === "assistant" &&
+        text.includes("halo, saya umkm growth copilot")
+      );
+    });
+
+  const deduped: RequestMessage[] = [];
+  for (const item of cleaned) {
+    const normalized = item.content.trim();
+    const prev = deduped[deduped.length - 1];
+    if (
+      prev &&
+      prev.role === item.role &&
+      prev.content.trim().toLowerCase() === normalized.toLowerCase()
+    ) {
+      continue;
+    }
+
+    if (currentMessage && item.role === "user") {
+      const current = currentMessage.trim().toLowerCase();
+      if (normalized.toLowerCase() === current && deduped.length > 0) {
+        const last = deduped[deduped.length - 1];
+        if (last.role === "user" && last.content.trim().toLowerCase() === current) {
+          continue;
+        }
+      }
+    }
+
+    deduped.push({
+      role: item.role,
+      content: normalized,
+    });
+  }
+
+  return deduped.slice(-8);
+}
+
 function isModelUnavailableError(error: unknown) {
   if (!(error instanceof Error)) {
     return false;
@@ -198,6 +244,7 @@ export async function POST(request: Request) {
     const responseLength = settings.responseLength || "medium";
     const businessScale = settings.businessScale || "mikro";
     const sector = settings.sector || "umum";
+    const cleanedHistory = sanitizeHistory(body.history, message);
 
     const systemInstruction = `
 Kamu adalah ${persona} untuk pelaku UMKM Indonesia.
@@ -208,16 +255,18 @@ Sektor bisnis pengguna: ${sector}.
 
 Aturan jawaban:
 1. Jawaban harus konkret, bisa dieksekusi, dan berdampak pada peningkatan omzet atau efisiensi.
-2. Gunakan struktur: Analisis Singkat, Aksi Prioritas, KPI, Risiko, dan Estimasi Dampak.
-3. Jika pengguna meminta strategi, berikan urutan langkah dengan nomor.
-4. Hindari jawaban terlalu umum.
-5. ${responseLengthGuidance(responseLength)}
+  2. Jangan ulangi salam/perkenalan jika percakapan sudah berjalan.
+  3. Jangan gunakan markdown seperti **, #, atau tabel markdown.
+  4. Gunakan format teks biasa dengan bagian: Analisis Singkat, Aksi Prioritas, KPI, Risiko dan Mitigasi, Estimasi Dampak.
+  5. Jika pengguna meminta strategi dengan periode waktu (contoh: 14 hari), berikan rencana terjadwal sesuai periode tersebut.
+  6. Hindari jawaban terlalu umum.
+  7. ${responseLengthGuidance(responseLength)}
 `.trim();
 
     const fullPrompt = `${systemInstruction}
 
 Riwayat percakapan:
-${serializeHistory(body.history)}
+${serializeHistory(cleanedHistory)}
 
 Pertanyaan pengguna:
 ${message}`;
