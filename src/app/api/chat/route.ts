@@ -161,7 +161,10 @@ function dropCurrentPromptFromHistory(
   const cloned = [...history];
   while (cloned.length > 0) {
     const last = cloned[cloned.length - 1];
-    if (last.role === "user" && normalizeText(last.content) === normalizedCurrent) {
+    if (
+      last.role === "user" &&
+      normalizeText(last.content) === normalizedCurrent
+    ) {
       cloned.pop();
       continue;
     }
@@ -247,7 +250,10 @@ function extractRetryDelaySeconds(error: unknown) {
 }
 
 function toUserFriendlyError(error: unknown) {
-  if (error instanceof GroqApiError && (error.status === 401 || error.status === 403)) {
+  if (
+    error instanceof GroqApiError &&
+    (error.status === 401 || error.status === 403)
+  ) {
     return "GROQ_API_KEY tidak valid atau tidak punya akses. Periksa kembali API key Groq pada .env.local atau Vercel.";
   }
 
@@ -423,7 +429,10 @@ Aturan jawaban:
       } catch (error) {
         lastError = error;
 
-        if (error instanceof GroqApiError && (error.status === 401 || error.status === 403)) {
+        if (
+          error instanceof GroqApiError &&
+          (error.status === 401 || error.status === 403)
+        ) {
           throw error;
         }
 
