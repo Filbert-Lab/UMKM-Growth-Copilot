@@ -48,7 +48,7 @@ Status saat ini: 24 fitur sudah terimplementasi dan dapat digunakan pada aplikas
 
 | No  | Fitur                        | Deskripsi Singkat                                        | Status  |
 | --- | ---------------------------- | -------------------------------------------------------- | ------- |
-| 1   | AI Chat Realtime             | Konsultasi bisnis langsung dengan Gemini API             | Selesai |
+| 1   | AI Chat Realtime             | Konsultasi bisnis langsung dengan Groq API               | Selesai |
 | 2   | Persona AI                   | Pilihan persona: growth, marketing, operasional, finance | Selesai |
 | 3   | Tone Control                 | Mengatur gaya komunikasi jawaban AI                      | Selesai |
 | 4   | Multi Language Output        | Output Bahasa Indonesia atau English                     | Selesai |
@@ -108,7 +108,7 @@ Semua target fitur ditetapkan selesai maksimal pada 13 Apr 2026 (sebelum deadlin
 
 - Frontend dan backend: Next.js 16 + TypeScript
 - Styling: Tailwind CSS v4
-- AI engine: Google Gemini API melalui package @google/generative-ai
+- AI engine: Groq API (OpenAI-compatible Chat Completions)
 - Hosting dan deployment: Vercel
 
 ## 5) Cara Menjalankan Project (Untuk Semua Orang)
@@ -123,8 +123,8 @@ npm install
 3. Buat file environment dari contoh file dan isi API key:
 
 ```bash
-GEMINI_API_KEY=YOUR_GEMINI_API_KEY
-GEMINI_MODEL=gemini-2.5-flash
+GROQ_API_KEY=YOUR_GROQ_API_KEY
+GROQ_MODEL=llama-3.1-8b-instant
 ```
 
 4. Jalankan aplikasi:
@@ -139,14 +139,14 @@ npm run dev
 
 1. Import repository GitHub ke Vercel.
 2. Tambahkan environment variables berikut:
-   - GEMINI_API_KEY
-   - GEMINI_MODEL (disarankan: gemini-2.5-flash)
+   - GROQ_API_KEY
+   - GROQ_MODEL (disarankan: llama-3.1-8b-instant)
 3. Deploy.
 
 ## 7) Struktur Project Inti
 
 - src/app/page.tsx: Halaman UI utama aplikasi.
-- src/app/api/chat/route.ts: Endpoint API untuk komunikasi dengan Gemini.
+- src/app/api/chat/route.ts: Endpoint API untuk komunikasi dengan Groq.
 - .env.example: Contoh konfigurasi environment.
 
 ## 8) Data Kelompok

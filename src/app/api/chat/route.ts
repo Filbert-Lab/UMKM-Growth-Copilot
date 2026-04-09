@@ -1,8 +1,14 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 
 type RequestMessage = {
   role: "user" | "assistant";
+  content: string;
+};
+
+type GroqRole = "system" | "user" | "assistant";
+
+type GroqMessage = {
+  role: GroqRole;
   content: string;
 };
 
@@ -22,11 +28,42 @@ type ChatRequestBody = {
   settings?: ChatSettings;
 };
 
+type GroqErrorPayload = {
+  error?: {
+    message?: string;
+    type?: string;
+    code?: string;
+  };
+};
+
+type GroqCompletionPayload = GroqErrorPayload & {
+  choices?: Array<{
+    message?: {
+      role?: "assistant";
+      content?: string;
+    };
+  }>;
+};
+
+class GroqApiError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
 const FALLBACK_MODELS = [
-  "gemini-2.5-flash",
-  "gemini-2.0-flash",
-  "gemini-2.0-flash-lite",
+  "llama-3.1-8b-instant",
+  "llama-3.3-70b-versatile",
+  "mixtral-8x7b-32768",
 ];
+
+const GROQ_CHAT_COMPLETIONS_URL =
+  "https://api.groq.com/openai/v1/chat/completions";
+
+const HISTORY_LIMIT = 6;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -35,12 +72,12 @@ function clamp(value: number, min: number, max: number) {
 function maxOutputTokens(length: ChatSettings["responseLength"]) {
   switch (length) {
     case "short":
-      return 600;
+      return 450;
     case "long":
-      return 2200;
+      return 1400;
     case "medium":
     default:
-      return 1400;
+      return 900;
   }
 }
 
@@ -56,17 +93,8 @@ function responseLengthGuidance(length: ChatSettings["responseLength"]) {
   }
 }
 
-function serializeHistory(history: RequestMessage[] = []) {
-  if (!Array.isArray(history) || history.length === 0) {
-    return "Belum ada riwayat percakapan sebelumnya.";
-  }
-
-  return history
-    .slice(-8)
-    .map(
-      (item) => `${item.role === "assistant" ? "AI" : "User"}: ${item.content}`,
-    )
-    .join("\n");
+function normalizeText(value: string) {
+  return value.trim().toLowerCase();
 }
 
 function sanitizeHistory(
@@ -118,7 +146,30 @@ function sanitizeHistory(
     });
   }
 
-  return deduped.slice(-8);
+  return deduped.slice(-HISTORY_LIMIT);
+}
+
+function dropCurrentPromptFromHistory(
+  history: RequestMessage[],
+  currentMessage: string,
+) {
+  const normalizedCurrent = normalizeText(currentMessage);
+  if (!normalizedCurrent) {
+    return history;
+  }
+
+  const cloned = [...history];
+  while (cloned.length > 0) {
+    const last = cloned[cloned.length - 1];
+    if (last.role === "user" && normalizeText(last.content) === normalizedCurrent) {
+      cloned.pop();
+      continue;
+    }
+
+    break;
+  }
+
+  return cloned;
 }
 
 function isModelUnavailableError(error: unknown) {
@@ -135,6 +186,10 @@ function isModelUnavailableError(error: unknown) {
 }
 
 function isRetryableModelError(error: unknown) {
+  if (error instanceof GroqApiError) {
+    return error.status === 429 || error.status >= 500;
+  }
+
   if (!(error instanceof Error)) {
     return false;
   }
@@ -148,6 +203,10 @@ function isRetryableModelError(error: unknown) {
 }
 
 function isQuotaExceededError(error: unknown) {
+  if (error instanceof GroqApiError) {
+    return error.status === 429;
+  }
+
   if (!(error instanceof Error)) {
     return false;
   }
@@ -168,8 +227,10 @@ function extractRetryDelaySeconds(error: unknown) {
   const message = error.message;
   const patterns = [
     /retry in\s+([0-9]+(?:\.[0-9]+)?)s/i,
+    /try again in\s+([0-9]+(?:\.[0-9]+)?)s/i,
     /"retryDelay"\s*:\s*"([0-9]+(?:\.[0-9]+)?)s"/i,
     /retrydelay":"([0-9]+(?:\.[0-9]+)?)s"/i,
+    /retry-after[^0-9]*([0-9]+)/i,
   ];
 
   for (const pattern of patterns) {
@@ -186,6 +247,10 @@ function extractRetryDelaySeconds(error: unknown) {
 }
 
 function toUserFriendlyError(error: unknown) {
+  if (error instanceof GroqApiError && (error.status === 401 || error.status === 403)) {
+    return "GROQ_API_KEY tidak valid atau tidak punya akses. Periksa kembali API key Groq pada .env.local atau Vercel.";
+  }
+
   if (!(error instanceof Error)) {
     return "Terjadi kesalahan internal saat memproses permintaan.";
   }
@@ -197,17 +262,17 @@ function toUserFriendlyError(error: unknown) {
       : " Coba lagi dalam 1-2 menit.";
 
     return (
-      "Kuota Gemini sedang penuh (rate limit)." +
+      "Kuota Groq sedang penuh (rate limit)." +
       waitHint +
-      " Jika sering terjadi, gunakan GEMINI_MODEL=gemini-2.5-flash di Vercel."
+      " Jika sering terjadi, gunakan model lebih hemat seperti GROQ_MODEL=llama-3.1-8b-instant."
     );
   }
 
   if (isModelUnavailableError(error)) {
-    return "Model Gemini tidak tersedia. Gunakan GEMINI_MODEL=gemini-2.5-flash lalu redeploy.";
+    return "Model Groq tidak tersedia. Gunakan GROQ_MODEL=llama-3.1-8b-instant lalu redeploy.";
   }
 
-  return "Terjadi kendala pada layanan AI. Silakan coba lagi sebentar lagi.";
+  return "Terjadi kendala pada layanan AI Groq. Silakan coba lagi sebentar lagi.";
 }
 
 function buildModelCandidates(preferredModel?: string) {
@@ -216,6 +281,69 @@ function buildModelCandidates(preferredModel?: string) {
   );
 
   return [...new Set(all)];
+}
+
+function toGroqMessages(
+  systemInstruction: string,
+  history: RequestMessage[],
+  currentMessage: string,
+): GroqMessage[] {
+  const base: GroqMessage[] = [{ role: "system", content: systemInstruction }];
+
+  for (const item of history) {
+    base.push({
+      role: item.role,
+      content: item.content,
+    });
+  }
+
+  base.push({
+    role: "user",
+    content: currentMessage,
+  });
+
+  return base;
+}
+
+async function createGroqCompletion(
+  apiKey: string,
+  model: string,
+  messages: GroqMessage[],
+  temperature: number,
+  maxTokens: number,
+) {
+  const response = await fetch(GROQ_CHAT_COMPLETIONS_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature,
+      top_p: 0.9,
+      max_tokens: maxTokens,
+    }),
+  });
+
+  const payload = (await response
+    .json()
+    .catch(() => null)) as GroqCompletionPayload | null;
+
+  if (!response.ok) {
+    const message =
+      payload?.error?.message ||
+      `Groq request gagal dengan status ${response.status}.`;
+    throw new GroqApiError(response.status, message);
+  }
+
+  const reply = payload?.choices?.[0]?.message?.content?.trim();
+  if (!reply) {
+    throw new GroqApiError(502, "Model tidak mengembalikan jawaban.");
+  }
+
+  return reply;
 }
 
 export async function POST(request: Request) {
@@ -230,18 +358,18 @@ export async function POST(request: Request) {
       );
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
         {
           error:
-            "GEMINI_API_KEY belum diset. Tambahkan environment variable pada .env.local atau Vercel.",
+            "GROQ_API_KEY belum diset. Tambahkan environment variable pada .env.local atau Vercel.",
         },
         { status: 500 },
       );
     }
 
-    const modelCandidates = buildModelCandidates(process.env.GEMINI_MODEL);
+    const modelCandidates = buildModelCandidates(process.env.GROQ_MODEL);
     const settings = body.settings || {};
 
     const persona = settings.persona || "Konsultan pertumbuhan UMKM";
@@ -251,6 +379,10 @@ export async function POST(request: Request) {
     const businessScale = settings.businessScale || "mikro";
     const sector = settings.sector || "umum";
     const cleanedHistory = sanitizeHistory(body.history, message);
+    const historyForMessages = dropCurrentPromptFromHistory(
+      cleanedHistory,
+      message,
+    );
 
     const systemInstruction = `
 Kamu adalah ${persona} untuk pelaku UMKM Indonesia.
@@ -269,58 +401,45 @@ Aturan jawaban:
   7. ${responseLengthGuidance(responseLength)}
 `.trim();
 
-    const fullPrompt = `${systemInstruction}
+    const groqMessages = toGroqMessages(
+      systemInstruction,
+      historyForMessages,
+      message,
+    );
 
-Riwayat percakapan:
-${serializeHistory(cleanedHistory)}
-
-Pertanyaan pengguna:
-${message}`;
-
-    const client = new GoogleGenerativeAI(apiKey);
-
-    let result: Awaited<
-      ReturnType<
-        ReturnType<typeof client.getGenerativeModel>["generateContent"]
-      >
-    > | null = null;
+    let reply: string | null = null;
     let lastError: unknown = null;
 
     for (const modelName of modelCandidates) {
       try {
-        const model = client.getGenerativeModel({ model: modelName });
-        result = await model.generateContent({
-          contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
-          generationConfig: {
-            temperature: clamp(settings.temperature ?? 0.6, 0, 1),
-            topP: 0.9,
-            maxOutputTokens: maxOutputTokens(responseLength),
-          },
-        });
+        reply = await createGroqCompletion(
+          apiKey,
+          modelName,
+          groqMessages,
+          clamp(settings.temperature ?? 0.6, 0, 1),
+          maxOutputTokens(responseLength),
+        );
         break;
       } catch (error) {
         lastError = error;
+
+        if (error instanceof GroqApiError && (error.status === 401 || error.status === 403)) {
+          throw error;
+        }
+
         if (!isModelUnavailableError(error) && !isRetryableModelError(error)) {
           throw error;
         }
       }
     }
 
-    if (!result) {
+    if (!reply) {
       const status = isQuotaExceededError(lastError) ? 429 : 502;
       return NextResponse.json(
         {
           error: toUserFriendlyError(lastError),
         },
         { status },
-      );
-    }
-
-    const reply = result.response.text()?.trim();
-    if (!reply) {
-      return NextResponse.json(
-        { error: "Model tidak mengembalikan jawaban. Coba lagi." },
-        { status: 502 },
       );
     }
 

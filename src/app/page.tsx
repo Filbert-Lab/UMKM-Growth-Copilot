@@ -472,7 +472,7 @@ export default function Home() {
                 Live AI Session
               </p>
               <h2 className="text-xl font-semibold text-[#2c1714]">
-                Konsultasi Bisnis Berbasis Gemini
+                Konsultasi Bisnis Berbasis Groq
               </h2>
             </div>
             <div className="flex gap-2">
@@ -564,7 +564,7 @@ export default function Home() {
                 disabled={!draft.trim() || isLoading}
                 className="ui-btn ui-btn-primary px-5 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-55"
               >
-                {isLoading ? "Memproses..." : "Kirim ke Gemini"}
+                {isLoading ? "Memproses..." : "Kirim ke Groq"}
               </button>
             </div>
 
@@ -603,7 +603,7 @@ export default function Home() {
             Fitur Aktif Saat Ini
           </h3>
           <ul className="mt-3 space-y-2 text-sm text-[#5a3f3b]">
-            <li>- Chat AI realtime dengan Gemini API</li>
+            <li>- Chat AI realtime dengan Groq API</li>
             <li>- Konteks persona, tone, bahasa, sektor, dan skala usaha</li>
             <li>- Penyimpanan lokal riwayat konsultasi otomatis</li>
             <li>- Export konsultasi ke file Markdown</li>
