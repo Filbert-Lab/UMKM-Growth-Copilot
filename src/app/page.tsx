@@ -36,7 +36,7 @@ const defaultSettings: Settings = {
   persona: "Konsultan Pertumbuhan UMKM",
   tone: "Aplikatif dan profesional",
   language: "id",
-  responseLength: "medium",
+  responseLength: "long",
   temperature: 0.6,
   businessScale: "mikro",
   sector: "Kuliner",

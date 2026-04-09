@@ -35,13 +35,44 @@ function clamp(value: number, min: number, max: number) {
 function maxOutputTokens(length: ChatSettings["responseLength"]) {
   switch (length) {
     case "short":
-      return 450;
+      return 600;
     case "long":
-      return 1300;
+      return 2200;
     case "medium":
     default:
-      return 900;
+      return 1400;
   }
+}
+
+function minimumWordTarget(length: ChatSettings["responseLength"]) {
+  switch (length) {
+    case "short":
+      return 80;
+    case "long":
+      return 380;
+    case "medium":
+    default:
+      return 220;
+  }
+}
+
+function responseLengthGuidance(length: ChatSettings["responseLength"]) {
+  switch (length) {
+    case "short":
+      return "Targetkan jawaban 80-140 kata dengan poin yang tetap konkret.";
+    case "long":
+      return "Targetkan jawaban 380-600 kata dengan penjabaran taktis per langkah.";
+    case "medium":
+    default:
+      return "Targetkan jawaban 220-350 kata dengan kedalaman yang aplikatif.";
+  }
+}
+
+function countWords(text: string) {
+  return text
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
 }
 
 function serializeHistory(history: RequestMessage[] = []) {
@@ -136,6 +167,7 @@ Aturan jawaban:
 2. Gunakan struktur: Analisis Singkat, Aksi Prioritas, KPI, Risiko, dan Estimasi Dampak.
 3. Jika pengguna meminta strategi, berikan urutan langkah dengan nomor.
 4. Hindari jawaban terlalu umum.
+5. ${responseLengthGuidance(responseLength)}
 `.trim();
 
     const fullPrompt = `${systemInstruction}
@@ -153,6 +185,7 @@ ${message}`;
         ReturnType<typeof client.getGenerativeModel>["generateContent"]
       >
     > | null = null;
+    let usedModelName: string | null = null;
     let lastError: unknown = null;
 
     for (const modelName of modelCandidates) {
@@ -166,6 +199,7 @@ ${message}`;
             maxOutputTokens: maxOutputTokens(responseLength),
           },
         });
+        usedModelName = modelName;
         break;
       } catch (error) {
         lastError = error;
@@ -190,12 +224,54 @@ ${message}`;
       );
     }
 
-    const reply = result.response.text()?.trim();
+    let reply = result.response.text()?.trim();
     if (!reply) {
       return NextResponse.json(
         { error: "Model tidak mengembalikan jawaban. Coba lagi." },
         { status: 502 },
       );
+    }
+
+    const minWords = minimumWordTarget(responseLength);
+    const currentWordCount = countWords(reply);
+
+    if (
+      responseLength !== "short" &&
+      currentWordCount < minWords &&
+      usedModelName
+    ) {
+      try {
+        const expansionModel = client.getGenerativeModel({
+          model: usedModelName,
+        });
+        const expansionPrompt = `
+Perluas jawaban berikut agar lebih detail dan aplikatif.
+Jaga tetap relevan dengan konteks UMKM pengguna.
+Target minimal ${minWords} kata.
+
+Pertanyaan pengguna:
+${message}
+
+Jawaban awal:
+${reply}
+`.trim();
+
+        const expanded = await expansionModel.generateContent({
+          contents: [{ role: "user", parts: [{ text: expansionPrompt }] }],
+          generationConfig: {
+            temperature: clamp(settings.temperature ?? 0.6, 0, 1),
+            topP: 0.9,
+            maxOutputTokens: maxOutputTokens(responseLength),
+          },
+        });
+
+        const expandedText = expanded.response.text()?.trim();
+        if (expandedText && countWords(expandedText) > currentWordCount) {
+          reply = expandedText;
+        }
+      } catch {
+        // Keep original answer if expansion fails.
+      }
     }
 
     return NextResponse.json({ reply });
