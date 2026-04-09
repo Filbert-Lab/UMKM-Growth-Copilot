@@ -6,6 +6,7 @@
   --card: rgba(255, 252, 246, 0.82);
   --ring: #d86f45;
   --muted: #6a5250;
+  --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @theme inline {
@@ -16,7 +17,10 @@
 }
 
 body {
-  background: var(--background);
+  background:
+    radial-gradient(circle at 84% 4%, rgba(235, 173, 150, 0.28), transparent 34%),
+    radial-gradient(circle at 12% 92%, rgba(240, 210, 154, 0.28), transparent 30%),
+    var(--background);
   color: var(--foreground);
   font-family: var(--font-sora), sans-serif;
 }
@@ -31,6 +35,145 @@ body {
   backdrop-filter: blur(14px);
   border: 1px solid rgba(145, 87, 63, 0.2);
   box-shadow: 0 8px 30px rgba(91, 46, 35, 0.08);
+  transition:
+    transform 0.28s var(--ease-smooth),
+    box-shadow 0.28s var(--ease-smooth),
+    border-color 0.28s var(--ease-smooth);
+}
+
+.interactive-surface:hover {
+  border-color: rgba(180, 94, 63, 0.34);
+  box-shadow: 0 16px 38px rgba(91, 46, 35, 0.12);
+}
+
+.control-field {
+  width: 100%;
+  border-radius: 0.85rem;
+  border: 1px solid #d6b3a8;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 0.58rem 0.8rem;
+  font-size: 0.92rem;
+  color: #2e1917;
+  transition:
+    border-color 0.2s var(--ease-smooth),
+    box-shadow 0.2s var(--ease-smooth),
+    background-color 0.2s var(--ease-smooth);
+}
+
+.control-field:hover {
+  border-color: #ca907d;
+}
+
+.control-field:focus {
+  outline: none;
+  border-color: var(--ring);
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(216, 111, 69, 0.22);
+}
+
+.ui-btn {
+  border-radius: 0.78rem;
+  border: 1px solid #d19b88;
+  background: rgba(255, 255, 255, 0.86);
+  color: #442825;
+  padding: 0.48rem 0.9rem;
+  line-height: 1.1;
+  transition:
+    transform 0.18s var(--ease-smooth),
+    box-shadow 0.18s var(--ease-smooth),
+    border-color 0.18s var(--ease-smooth),
+    background-color 0.18s var(--ease-smooth);
+}
+
+.ui-btn:hover {
+  transform: translateY(-1px);
+  border-color: #bf765d;
+  box-shadow: 0 6px 16px rgba(122, 63, 46, 0.14);
+}
+
+.ui-btn:active {
+  transform: translateY(0) scale(0.988);
+}
+
+.ui-btn-soft {
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.ui-btn-active {
+  border-color: #b75b3f;
+  background: rgba(248, 197, 165, 0.72);
+}
+
+.ui-btn-primary {
+  border-color: #be5d3d;
+  background: linear-gradient(135deg, #be5d3d, #d57852);
+  color: #fff9f4;
+}
+
+.ui-btn-primary:hover {
+  border-color: #9d4a30;
+  background: linear-gradient(135deg, #a74f33, #c66b49);
+}
+
+.ui-chip {
+  border-radius: 999px;
+  padding: 0.26rem 0.56rem;
+  border: 1px solid rgba(117, 74, 58, 0.14);
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.message-card {
+  transition:
+    transform 0.2s var(--ease-smooth),
+    box-shadow 0.2s var(--ease-smooth),
+    border-color 0.2s var(--ease-smooth);
+}
+
+.message-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(119, 72, 57, 0.11);
+}
+
+.template-chip {
+  border-color: #d8b0a1;
+  background: rgba(255, 255, 255, 0.75);
+  transition:
+    transform 0.2s var(--ease-smooth),
+    box-shadow 0.2s var(--ease-smooth),
+    background-color 0.2s var(--ease-smooth),
+    border-color 0.2s var(--ease-smooth);
+}
+
+.template-chip:hover {
+  transform: translateX(3px);
+  border-color: #c7785d;
+  background: #ffe8db;
+  box-shadow: 0 7px 16px rgba(114, 61, 47, 0.12);
+}
+
+.template-chip.is-active {
+  border-color: #b96549;
+  background: #ffd8c2;
+}
+
+.panel-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #c58c74 transparent;
+}
+
+.panel-scroll::-webkit-scrollbar {
+  width: 10px;
+}
+
+.panel-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  background-color: rgba(177, 103, 75, 0.68);
+}
+
+.panel-scroll::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .mono {
@@ -51,4 +194,18 @@ body {
 
 .reveal {
   animation: floatUp 0.45s ease-out both;
+}
+
+@media (max-width: 1024px) {
+  .interactive-surface:hover {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
 }

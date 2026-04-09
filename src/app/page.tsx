@@ -91,7 +91,14 @@ export default function Home() {
   const [draft, setDraft] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [exported, setExported] = useState(false);
+  const [highlightTemplate, setHighlightTemplate] = useState<string | null>(
+    null,
+  );
   const requestLockRef = useRef(false);
+  const chatScrollRef = useRef<HTMLDivElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     const storedMessages = window.localStorage.getItem(MESSAGE_STORAGE);
@@ -125,6 +132,18 @@ export default function Home() {
   useEffect(() => {
     window.localStorage.setItem(SETTINGS_STORAGE, JSON.stringify(settings));
   }, [settings]);
+
+  useEffect(() => {
+    const container = chatScrollRef.current;
+    if (!container) {
+      return;
+    }
+
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [messages, isLoading]);
 
   const stats = useMemo(() => {
     const totalChars = messages.reduce(
@@ -221,11 +240,20 @@ export default function Home() {
   }
 
   function addTemplate(text: string) {
+    setHighlightTemplate(text);
     setDraft((current) => {
       if (!current) {
         return text;
       }
       return `${current}\n${text}`;
+    });
+
+    window.setTimeout(() => {
+      setHighlightTemplate((current) => (current === text ? null : current));
+    }, 650);
+
+    window.requestAnimationFrame(() => {
+      textareaRef.current?.focus();
     });
   }
 
@@ -243,6 +271,8 @@ export default function Home() {
     anchor.download = `umkm-growth-copilot-${Date.now()}.md`;
     anchor.click();
     URL.revokeObjectURL(url);
+    setExported(true);
+    window.setTimeout(() => setExported(false), 1200);
   }
 
   async function copyLatestAnswer() {
@@ -253,6 +283,8 @@ export default function Home() {
       return;
     }
     await navigator.clipboard.writeText(latestAnswer.content);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1200);
   }
 
   function handleHotkey(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -270,7 +302,7 @@ export default function Home() {
       </div>
 
       <main className="reveal relative mx-auto grid max-w-7xl gap-5 lg:grid-cols-[320px_minmax(0,1fr)_320px]">
-        <aside className="card-surface rounded-2xl p-5">
+        <aside className="card-surface interactive-surface rounded-2xl p-5">
           <h1 className="text-2xl font-semibold leading-tight text-[#3a1f1a]">
             UMKM Growth Copilot AI
           </h1>
@@ -283,7 +315,7 @@ export default function Home() {
             <label className="block text-sm font-medium text-[#5c342d]">
               Persona AI
               <select
-                className="mt-1 w-full rounded-xl border border-[#d6b3a8] bg-white/90 px-3 py-2 text-sm outline-none ring-0 focus:border-[color:var(--ring)]"
+                className="control-field mt-1"
                 value={settings.persona}
                 onChange={(event) =>
                   setSettings((prev) => ({
@@ -303,7 +335,7 @@ export default function Home() {
             <label className="block text-sm font-medium text-[#5c342d]">
               Gaya Jawaban
               <select
-                className="mt-1 w-full rounded-xl border border-[#d6b3a8] bg-white/90 px-3 py-2 text-sm outline-none focus:border-[color:var(--ring)]"
+                className="control-field mt-1"
                 value={settings.tone}
                 onChange={(event) =>
                   setSettings((prev) => ({ ...prev, tone: event.target.value }))
@@ -320,7 +352,7 @@ export default function Home() {
             <label className="block text-sm font-medium text-[#5c342d]">
               Skala Bisnis
               <select
-                className="mt-1 w-full rounded-xl border border-[#d6b3a8] bg-white/90 px-3 py-2 text-sm outline-none focus:border-[color:var(--ring)]"
+                className="control-field mt-1"
                 value={settings.businessScale}
                 onChange={(event) =>
                   setSettings((prev) => ({
@@ -339,7 +371,7 @@ export default function Home() {
             <label className="block text-sm font-medium text-[#5c342d]">
               Sektor Usaha
               <input
-                className="mt-1 w-full rounded-xl border border-[#d6b3a8] bg-white/90 px-3 py-2 text-sm outline-none focus:border-[color:var(--ring)]"
+                className="control-field mt-1"
                 value={settings.sector}
                 onChange={(event) =>
                   setSettings((prev) => ({
@@ -354,7 +386,7 @@ export default function Home() {
             <label className="block text-sm font-medium text-[#5c342d]">
               Panjang Respon
               <select
-                className="mt-1 w-full rounded-xl border border-[#d6b3a8] bg-white/90 px-3 py-2 text-sm outline-none focus:border-[color:var(--ring)]"
+                className="control-field mt-1"
                 value={settings.responseLength}
                 onChange={(event) =>
                   setSettings((prev) => ({
@@ -375,10 +407,10 @@ export default function Home() {
               <div className="mt-1 grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  className={`rounded-xl border px-3 py-2 text-sm ${
+                  className={`ui-btn ${
                     settings.language === "id"
-                      ? "border-[#b75b3f] bg-[#f8c5a5]/70"
-                      : "border-[#d6b3a8] bg-white/80"
+                      ? "ui-btn-active"
+                      : "ui-btn-soft"
                   }`}
                   onClick={() =>
                     setSettings((prev) => ({ ...prev, language: "id" }))
@@ -388,10 +420,10 @@ export default function Home() {
                 </button>
                 <button
                   type="button"
-                  className={`rounded-xl border px-3 py-2 text-sm ${
+                  className={`ui-btn ${
                     settings.language === "en"
-                      ? "border-[#b75b3f] bg-[#f8c5a5]/70"
-                      : "border-[#d6b3a8] bg-white/80"
+                      ? "ui-btn-active"
+                      : "ui-btn-soft"
                   }`}
                   onClick={() =>
                     setSettings((prev) => ({ ...prev, language: "en" }))
@@ -422,7 +454,7 @@ export default function Home() {
           </div>
         </aside>
 
-        <section className="card-surface flex min-h-[70vh] flex-col rounded-2xl p-4 sm:p-6">
+        <section className="card-surface interactive-surface flex min-h-[70vh] flex-col rounded-2xl p-4 sm:p-6">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
               <p className="text-xs uppercase tracking-[0.18em] text-[#9d5b49]">
@@ -436,21 +468,21 @@ export default function Home() {
               <button
                 type="button"
                 onClick={copyLatestAnswer}
-                className="rounded-lg border border-[#d19b88] bg-white/80 px-3 py-1.5 text-xs font-medium"
+                className={`ui-btn ui-btn-soft text-xs ${copied ? "ui-btn-active" : ""}`}
               >
-                Copy Jawaban
+                {copied ? "Tersalin" : "Copy Jawaban"}
               </button>
               <button
                 type="button"
                 onClick={exportConversation}
-                className="rounded-lg border border-[#d19b88] bg-white/80 px-3 py-1.5 text-xs font-medium"
+                className={`ui-btn ui-btn-soft text-xs ${exported ? "ui-btn-active" : ""}`}
               >
-                Export MD
+                {exported ? "Berhasil" : "Export MD"}
               </button>
               <button
                 type="button"
                 onClick={clearConversation}
-                className="rounded-lg border border-[#d19b88] bg-white/80 px-3 py-1.5 text-xs font-medium"
+                className="ui-btn ui-btn-soft text-xs"
               >
                 Reset
               </button>
@@ -458,22 +490,25 @@ export default function Home() {
           </div>
 
           <div className="mono mb-4 flex flex-wrap gap-2 text-xs">
-            <span className="rounded-full bg-[#f4d8cb] px-2 py-1 text-[#68342c]">
+            <span className="ui-chip bg-[#f4d8cb] text-[#68342c]">
               messages: {stats.totalMessages}
             </span>
-            <span className="rounded-full bg-[#f6e6c2] px-2 py-1 text-[#684a25]">
+            <span className="ui-chip bg-[#f6e6c2] text-[#684a25]">
               replies: {stats.assistantReplies}
             </span>
-            <span className="rounded-full bg-[#eadfef] px-2 py-1 text-[#4d3564]">
+            <span className="ui-chip bg-[#eadfef] text-[#4d3564]">
               est. tokens: {stats.estimatedTokens}
             </span>
           </div>
 
-          <div className="flex-1 space-y-3 overflow-y-auto rounded-xl bg-white/55 p-3">
+          <div
+            ref={chatScrollRef}
+            className="panel-scroll flex-1 space-y-3 overflow-y-auto rounded-xl bg-white/55 p-3"
+          >
             {messages.map((message, index) => (
               <article
                 key={message.id}
-                className={`reveal rounded-2xl p-3 ${
+                className={`reveal message-card rounded-2xl p-3 ${
                   message.role === "assistant"
                     ? "mr-8 border border-[#dcb0a2] bg-[#fff9f3]"
                     : "ml-8 border border-[#c7a190] bg-[#ffe7d7]"
@@ -490,7 +525,7 @@ export default function Home() {
             ))}
 
             {isLoading ? (
-              <div className="inline-flex items-center gap-2 rounded-full bg-[#fff0df] px-4 py-2 text-sm text-[#7f4a3f]">
+              <div className="inline-flex items-center gap-2 rounded-full bg-[#fff0df] px-4 py-2 text-sm text-[#7f4a3f] shadow-sm">
                 <span className="h-2 w-2 animate-pulse rounded-full bg-[#cf704f]" />
                 AI sedang menyusun rekomendasi...
               </div>
@@ -499,12 +534,13 @@ export default function Home() {
 
           <form onSubmit={sendPrompt} className="mt-4 space-y-3">
             <textarea
+              ref={textareaRef}
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
               onKeyDown={handleHotkey}
               rows={5}
               placeholder="Contoh: Toko saya omzet stagnan 6 bulan terakhir. Tolong beri langkah perbaikan 30 hari yang realistis."
-              className="w-full rounded-2xl border border-[#d6b3a8] bg-white/90 p-3 text-sm leading-relaxed outline-none focus:border-[color:var(--ring)]"
+              className="control-field min-h-[148px] resize-none p-3 text-sm leading-relaxed"
             />
 
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -515,7 +551,7 @@ export default function Home() {
               <button
                 type="submit"
                 disabled={!draft.trim() || isLoading}
-                className="rounded-xl bg-[#be5d3d] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#9d4a30] disabled:cursor-not-allowed disabled:bg-[#d9a390]"
+                className="ui-btn ui-btn-primary px-5 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-55"
               >
                 {isLoading ? "Memproses..." : "Kirim ke Gemini"}
               </button>
@@ -529,7 +565,7 @@ export default function Home() {
           </form>
         </section>
 
-        <aside className="card-surface rounded-2xl p-5">
+        <aside className="card-surface interactive-surface rounded-2xl p-5">
           <h3 className="text-lg font-semibold text-[#2f1a17]">
             Template Prompt Cepat
           </h3>
@@ -543,7 +579,9 @@ export default function Home() {
                 key={template}
                 type="button"
                 onClick={() => addTemplate(template)}
-                className="w-full rounded-xl border border-[#d8b0a1] bg-white/75 p-3 text-left text-sm text-[#412624] transition hover:bg-[#ffe8db]"
+                className={`template-chip w-full rounded-xl border p-3 text-left text-sm text-[#412624] ${
+                  highlightTemplate === template ? "is-active" : ""
+                }`}
               >
                 {template}
               </button>
