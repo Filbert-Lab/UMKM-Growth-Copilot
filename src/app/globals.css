@@ -1,26 +1,54 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f8efe4;
+  --foreground: #1a1110;
+  --card: rgba(255, 252, 246, 0.82);
+  --ring: #d86f45;
+  --muted: #6a5250;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: var(--font-sora);
+  --font-mono: var(--font-ibm-plex-mono);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sora), sans-serif;
+}
+
+::selection {
+  background: #f5b38f;
+  color: #2f1b17;
+}
+
+.card-surface {
+  background: var(--card);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(145, 87, 63, 0.2);
+  box-shadow: 0 8px 30px rgba(91, 46, 35, 0.08);
+}
+
+.mono {
+  font-family: var(--font-ibm-plex-mono), monospace;
+}
+
+@keyframes floatUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reveal {
+  animation: floatUp 0.45s ease-out both;
 }

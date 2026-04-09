@@ -1,64 +1,547 @@
-import Image from "next/image";
+"use client";
+
+import { FormEvent, KeyboardEvent, useEffect, useMemo, useState } from "react";
+
+type ChatRole = "user" | "assistant";
+
+type ChatMessage = {
+  id: string;
+  role: ChatRole;
+  content: string;
+  createdAt: string;
+};
+
+type Settings = {
+  persona: string;
+  tone: string;
+  language: "id" | "en";
+  responseLength: "short" | "medium" | "long";
+  temperature: number;
+  businessScale: "mikro" | "kecil" | "menengah";
+  sector: string;
+};
+
+const MESSAGE_STORAGE = "umkm-growth-copilot-messages";
+const SETTINGS_STORAGE = "umkm-growth-copilot-settings";
+
+const baseWelcome: ChatMessage = {
+  id: "welcome-message",
+  role: "assistant",
+  content:
+    "Halo, saya UMKM Growth Copilot. Ceritakan kondisi bisnismu, lalu saya bantu strategi marketing, operasional, dan keuangan yang bisa langsung dieksekusi.",
+  createdAt: new Date().toISOString(),
+};
+
+const defaultSettings: Settings = {
+  persona: "Konsultan Pertumbuhan UMKM",
+  tone: "Aplikatif dan profesional",
+  language: "id",
+  responseLength: "medium",
+  temperature: 0.6,
+  businessScale: "mikro",
+  sector: "Kuliner",
+};
+
+const promptTemplates = [
+  "Buatkan strategi promosi IG 14 hari untuk usaha saya",
+  "Hitungkan ide paket bundling produk agar margin naik",
+  "Buat SOP sederhana untuk kurangi komplain pelanggan",
+  "Rancang program loyalti pelanggan dengan budget minim",
+  "Buatkan skrip chat WhatsApp untuk closing pelanggan baru",
+  "Susun checklist kesiapan bisnis untuk pengajuan pinjaman",
+];
+
+const personaOptions = [
+  "Konsultan Pertumbuhan UMKM",
+  "Spesialis Marketing Digital",
+  "Mentor Operasional Toko",
+  "Advisor Keuangan Mikro",
+];
+
+const toneOptions = [
+  "Aplikatif dan profesional",
+  "Santai dan memotivasi",
+  "Data-driven dan tegas",
+  "Formal untuk presentasi investor",
+];
+
+function createId() {
+  return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function toExportMarkdown(messages: ChatMessage[]) {
+  return messages
+    .map((message) => {
+      const speaker = message.role === "assistant" ? "AI" : "Pengguna";
+      return `## ${speaker}\n${message.content}`;
+    })
+    .join("\n\n");
+}
 
 export default function Home() {
+  const [messages, setMessages] = useState<ChatMessage[]>([baseWelcome]);
+  const [settings, setSettings] = useState<Settings>(defaultSettings);
+  const [draft, setDraft] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const storedMessages = window.localStorage.getItem(MESSAGE_STORAGE);
+    const storedSettings = window.localStorage.getItem(SETTINGS_STORAGE);
+
+    if (storedMessages) {
+      try {
+        const parsed = JSON.parse(storedMessages) as ChatMessage[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMessages(parsed);
+        }
+      } catch {
+        setMessages([baseWelcome]);
+      }
+    }
+
+    if (storedSettings) {
+      try {
+        const parsed = JSON.parse(storedSettings) as Settings;
+        setSettings((prev) => ({ ...prev, ...parsed }));
+      } catch {
+        setSettings(defaultSettings);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(MESSAGE_STORAGE, JSON.stringify(messages));
+  }, [messages]);
+
+  useEffect(() => {
+    window.localStorage.setItem(SETTINGS_STORAGE, JSON.stringify(settings));
+  }, [settings]);
+
+  const stats = useMemo(() => {
+    const totalChars = messages.reduce(
+      (total, item) => total + item.content.length,
+      0,
+    );
+    const assistantReplies = messages.filter(
+      (item) => item.role === "assistant",
+    ).length;
+    return {
+      totalMessages: messages.length,
+      assistantReplies,
+      estimatedTokens: Math.ceil(totalChars / 4),
+    };
+  }, [messages]);
+
+  async function sendPrompt(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
+
+    const trimmed = draft.trim();
+    if (!trimmed || isLoading) {
+      return;
+    }
+
+    const userMessage: ChatMessage = {
+      id: createId(),
+      role: "user",
+      content: trimmed,
+      createdAt: new Date().toISOString(),
+    };
+
+    const nextHistory = [...messages, userMessage];
+    setMessages(nextHistory);
+    setDraft("");
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: trimmed,
+          settings,
+          history: nextHistory.slice(-10),
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(payload?.error || "Gagal memproses permintaan.");
+      }
+
+      const payload = (await response.json()) as { reply: string };
+      const assistantMessage: ChatMessage = {
+        id: createId(),
+        role: "assistant",
+        content: payload.reply,
+        createdAt: new Date().toISOString(),
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+    } catch (caughtError) {
+      const errorMessage =
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Terjadi kendala koneksi ke layanan AI.";
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  function addTemplate(text: string) {
+    setDraft((current) => {
+      if (!current) {
+        return text;
+      }
+      return `${current}\n${text}`;
+    });
+  }
+
+  function clearConversation() {
+    setMessages([baseWelcome]);
+    setError(null);
+  }
+
+  function exportConversation() {
+    const markdown = toExportMarkdown(messages);
+    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `umkm-growth-copilot-${Date.now()}.md`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function copyLatestAnswer() {
+    const latestAnswer = [...messages]
+      .reverse()
+      .find((item) => item.role === "assistant");
+    if (!latestAnswer) {
+      return;
+    }
+    await navigator.clipboard.writeText(latestAnswer.content);
+  }
+
+  function handleHotkey(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+      void sendPrompt();
+    }
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <div className="relative min-h-screen overflow-hidden px-4 py-8 sm:px-6">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -left-24 top-14 h-56 w-56 rounded-full bg-[#f7c59f]/45 blur-3xl" />
+        <div className="absolute right-0 top-28 h-72 w-72 rounded-full bg-[#df8470]/35 blur-3xl" />
+        <div className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-[#f4d8a8]/40 blur-3xl" />
+      </div>
+
+      <main className="reveal relative mx-auto grid max-w-7xl gap-5 lg:grid-cols-[320px_minmax(0,1fr)_320px]">
+        <aside className="card-surface rounded-2xl p-5">
+          <h1 className="text-2xl font-semibold leading-tight text-[#3a1f1a]">
+            UMKM Growth Copilot AI
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="mt-2 text-sm text-[color:var(--muted)]">
+            AI tool untuk bantu usaha mikro hingga menengah bertumbuh lebih
+            cepat.
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+
+          <div className="mt-6 space-y-4">
+            <label className="block text-sm font-medium text-[#5c342d]">
+              Persona AI
+              <select
+                className="mt-1 w-full rounded-xl border border-[#d6b3a8] bg-white/90 px-3 py-2 text-sm outline-none ring-0 focus:border-[color:var(--ring)]"
+                value={settings.persona}
+                onChange={(event) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    persona: event.target.value,
+                  }))
+                }
+              >
+                {personaOptions.map((persona) => (
+                  <option key={persona} value={persona}>
+                    {persona}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block text-sm font-medium text-[#5c342d]">
+              Gaya Jawaban
+              <select
+                className="mt-1 w-full rounded-xl border border-[#d6b3a8] bg-white/90 px-3 py-2 text-sm outline-none focus:border-[color:var(--ring)]"
+                value={settings.tone}
+                onChange={(event) =>
+                  setSettings((prev) => ({ ...prev, tone: event.target.value }))
+                }
+              >
+                {toneOptions.map((tone) => (
+                  <option key={tone} value={tone}>
+                    {tone}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block text-sm font-medium text-[#5c342d]">
+              Skala Bisnis
+              <select
+                className="mt-1 w-full rounded-xl border border-[#d6b3a8] bg-white/90 px-3 py-2 text-sm outline-none focus:border-[color:var(--ring)]"
+                value={settings.businessScale}
+                onChange={(event) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    businessScale: event.target
+                      .value as Settings["businessScale"],
+                  }))
+                }
+              >
+                <option value="mikro">Mikro</option>
+                <option value="kecil">Kecil</option>
+                <option value="menengah">Menengah</option>
+              </select>
+            </label>
+
+            <label className="block text-sm font-medium text-[#5c342d]">
+              Sektor Usaha
+              <input
+                className="mt-1 w-full rounded-xl border border-[#d6b3a8] bg-white/90 px-3 py-2 text-sm outline-none focus:border-[color:var(--ring)]"
+                value={settings.sector}
+                onChange={(event) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    sector: event.target.value,
+                  }))
+                }
+                placeholder="Contoh: Fashion, Kuliner, Jasa"
+              />
+            </label>
+
+            <label className="block text-sm font-medium text-[#5c342d]">
+              Panjang Respon
+              <select
+                className="mt-1 w-full rounded-xl border border-[#d6b3a8] bg-white/90 px-3 py-2 text-sm outline-none focus:border-[color:var(--ring)]"
+                value={settings.responseLength}
+                onChange={(event) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    responseLength: event.target
+                      .value as Settings["responseLength"],
+                  }))
+                }
+              >
+                <option value="short">Ringkas</option>
+                <option value="medium">Sedang</option>
+                <option value="long">Panjang</option>
+              </select>
+            </label>
+
+            <label className="block text-sm font-medium text-[#5c342d]">
+              Bahasa Output
+              <div className="mt-1 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  className={`rounded-xl border px-3 py-2 text-sm ${
+                    settings.language === "id"
+                      ? "border-[#b75b3f] bg-[#f8c5a5]/70"
+                      : "border-[#d6b3a8] bg-white/80"
+                  }`}
+                  onClick={() =>
+                    setSettings((prev) => ({ ...prev, language: "id" }))
+                  }
+                >
+                  Indonesia
+                </button>
+                <button
+                  type="button"
+                  className={`rounded-xl border px-3 py-2 text-sm ${
+                    settings.language === "en"
+                      ? "border-[#b75b3f] bg-[#f8c5a5]/70"
+                      : "border-[#d6b3a8] bg-white/80"
+                  }`}
+                  onClick={() =>
+                    setSettings((prev) => ({ ...prev, language: "en" }))
+                  }
+                >
+                  English
+                </button>
+              </div>
+            </label>
+
+            <label className="block text-sm font-medium text-[#5c342d]">
+              Kreativitas ({settings.temperature.toFixed(1)})
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.1}
+                value={settings.temperature}
+                onChange={(event) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    temperature: Number(event.target.value),
+                  }))
+                }
+                className="mt-2 w-full accent-[#c46746]"
+              />
+            </label>
+          </div>
+        </aside>
+
+        <section className="card-surface flex min-h-[70vh] flex-col rounded-2xl p-4 sm:p-6">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.18em] text-[#9d5b49]">
+                Live AI Session
+              </p>
+              <h2 className="text-xl font-semibold text-[#2c1714]">
+                Konsultasi Bisnis Berbasis Gemini
+              </h2>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={copyLatestAnswer}
+                className="rounded-lg border border-[#d19b88] bg-white/80 px-3 py-1.5 text-xs font-medium"
+              >
+                Copy Jawaban
+              </button>
+              <button
+                type="button"
+                onClick={exportConversation}
+                className="rounded-lg border border-[#d19b88] bg-white/80 px-3 py-1.5 text-xs font-medium"
+              >
+                Export MD
+              </button>
+              <button
+                type="button"
+                onClick={clearConversation}
+                className="rounded-lg border border-[#d19b88] bg-white/80 px-3 py-1.5 text-xs font-medium"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+
+          <div className="mono mb-4 flex flex-wrap gap-2 text-xs">
+            <span className="rounded-full bg-[#f4d8cb] px-2 py-1 text-[#68342c]">
+              messages: {stats.totalMessages}
+            </span>
+            <span className="rounded-full bg-[#f6e6c2] px-2 py-1 text-[#684a25]">
+              replies: {stats.assistantReplies}
+            </span>
+            <span className="rounded-full bg-[#eadfef] px-2 py-1 text-[#4d3564]">
+              est. tokens: {stats.estimatedTokens}
+            </span>
+          </div>
+
+          <div className="flex-1 space-y-3 overflow-y-auto rounded-xl bg-white/55 p-3">
+            {messages.map((message, index) => (
+              <article
+                key={message.id}
+                className={`reveal rounded-2xl p-3 ${
+                  message.role === "assistant"
+                    ? "mr-8 border border-[#dcb0a2] bg-[#fff9f3]"
+                    : "ml-8 border border-[#c7a190] bg-[#ffe7d7]"
+                }`}
+                style={{ animationDelay: `${Math.min(index * 40, 240)}ms` }}
+              >
+                <p className="mb-1 text-xs uppercase tracking-[0.1em] text-[#7c5046]">
+                  {message.role === "assistant" ? "AI Advisor" : "Anda"}
+                </p>
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#2e1815]">
+                  {message.content}
+                </p>
+              </article>
+            ))}
+
+            {isLoading ? (
+              <div className="inline-flex items-center gap-2 rounded-full bg-[#fff0df] px-4 py-2 text-sm text-[#7f4a3f]">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-[#cf704f]" />
+                AI sedang menyusun rekomendasi...
+              </div>
+            ) : null}
+          </div>
+
+          <form onSubmit={sendPrompt} className="mt-4 space-y-3">
+            <textarea
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={handleHotkey}
+              rows={5}
+              placeholder="Contoh: Toko saya omzet stagnan 6 bulan terakhir. Tolong beri langkah perbaikan 30 hari yang realistis."
+              className="w-full rounded-2xl border border-[#d6b3a8] bg-white/90 p-3 text-sm leading-relaxed outline-none focus:border-[color:var(--ring)]"
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-xs text-[#7f5a55]">
+                {draft.length} karakter | tekan Ctrl/Cmd + Enter untuk kirim
+                cepat
+              </p>
+              <button
+                type="submit"
+                disabled={!draft.trim() || isLoading}
+                className="rounded-xl bg-[#be5d3d] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#9d4a30] disabled:cursor-not-allowed disabled:bg-[#d9a390]"
+              >
+                {isLoading ? "Memproses..." : "Kirim ke Gemini"}
+              </button>
+            </div>
+
+            {error ? (
+              <p className="rounded-xl border border-[#e17a5f] bg-[#ffe9e1] px-3 py-2 text-sm text-[#8f2f16]">
+                {error}
+              </p>
+            ) : null}
+          </form>
+        </section>
+
+        <aside className="card-surface rounded-2xl p-5">
+          <h3 className="text-lg font-semibold text-[#2f1a17]">
+            Template Prompt Cepat
+          </h3>
+          <p className="mt-1 text-sm text-[#6f4f4a]">
+            Pilih contoh prompt untuk mempercepat konsultasi harian.
+          </p>
+
+          <div className="mt-4 space-y-2">
+            {promptTemplates.map((template) => (
+              <button
+                key={template}
+                type="button"
+                onClick={() => addTemplate(template)}
+                className="w-full rounded-xl border border-[#d8b0a1] bg-white/75 p-3 text-left text-sm text-[#412624] transition hover:bg-[#ffe8db]"
+              >
+                {template}
+              </button>
+            ))}
+          </div>
+
+          <h3 className="mt-6 text-lg font-semibold text-[#2f1a17]">
+            Fitur Aktif MVP
+          </h3>
+          <ul className="mt-3 space-y-2 text-sm text-[#5a3f3b]">
+            <li>- Chat AI realtime dengan Gemini API</li>
+            <li>- Konteks persona, tone, bahasa, sektor, dan skala usaha</li>
+            <li>- Penyimpanan lokal riwayat konsultasi otomatis</li>
+            <li>- Export konsultasi ke file Markdown</li>
+            <li>- Prompt template siap pakai</li>
+            <li>- Statistik sesi dan estimasi token</li>
+          </ul>
+
+          <p className="mt-6 rounded-xl border border-[#e0b8aa] bg-[#fff6ef] p-3 text-xs leading-relaxed text-[#6e3d35]">
+            Catatan: aplikasi ini dirancang sebagai fondasi AI Tool UMKM yang
+            dapat dimonetisasi melalui model langganan, white-label, dan
+            konsultasi premium.
+          </p>
+        </aside>
       </main>
     </div>
   );
