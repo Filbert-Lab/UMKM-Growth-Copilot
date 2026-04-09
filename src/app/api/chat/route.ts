@@ -69,7 +69,10 @@ function serializeHistory(history: RequestMessage[] = []) {
     .join("\n");
 }
 
-function sanitizeHistory(history: RequestMessage[] = [], currentMessage?: string) {
+function sanitizeHistory(
+  history: RequestMessage[] = [],
+  currentMessage?: string,
+) {
   if (!Array.isArray(history)) {
     return [] as RequestMessage[];
   }
@@ -100,7 +103,10 @@ function sanitizeHistory(history: RequestMessage[] = [], currentMessage?: string
       const current = currentMessage.trim().toLowerCase();
       if (normalized.toLowerCase() === current && deduped.length > 0) {
         const last = deduped[deduped.length - 1];
-        if (last.role === "user" && last.content.trim().toLowerCase() === current) {
+        if (
+          last.role === "user" &&
+          last.content.trim().toLowerCase() === current
+        ) {
           continue;
         }
       }
