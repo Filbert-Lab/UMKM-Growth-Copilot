@@ -408,9 +408,7 @@ export default function Home() {
                 <button
                   type="button"
                   className={`ui-btn ${
-                    settings.language === "id"
-                      ? "ui-btn-active"
-                      : "ui-btn-soft"
+                    settings.language === "id" ? "ui-btn-active" : "ui-btn-soft"
                   }`}
                   onClick={() =>
                     setSettings((prev) => ({ ...prev, language: "id" }))
@@ -421,9 +419,7 @@ export default function Home() {
                 <button
                   type="button"
                   className={`ui-btn ${
-                    settings.language === "en"
-                      ? "ui-btn-active"
-                      : "ui-btn-soft"
+                    settings.language === "en" ? "ui-btn-active" : "ui-btn-soft"
                   }`}
                   onClick={() =>
                     setSettings((prev) => ({ ...prev, language: "en" }))
