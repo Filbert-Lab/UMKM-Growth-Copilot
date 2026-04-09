@@ -22,6 +22,12 @@ type ChatRequestBody = {
   settings?: ChatSettings;
 };
 
+const FALLBACK_MODELS = [
+  "gemini-2.0-flash",
+  "gemini-2.0-flash-lite",
+  "gemini-1.5-flash-latest",
+];
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
@@ -51,6 +57,27 @@ function serializeHistory(history: RequestMessage[] = []) {
     .join("\n");
 }
 
+function isModelUnavailableError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const text = error.message.toLowerCase();
+  return (
+    text.includes("not found") ||
+    text.includes("unsupported") ||
+    text.includes("model")
+  );
+}
+
+function buildModelCandidates(preferredModel?: string) {
+  const all = [preferredModel?.trim(), ...FALLBACK_MODELS].filter(
+    (value): value is string => Boolean(value),
+  );
+
+  return [...new Set(all)];
+}
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as ChatRequestBody;
@@ -74,7 +101,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const modelName = process.env.GEMINI_MODEL || "gemini-1.5-flash";
+    const modelCandidates = buildModelCandidates(process.env.GEMINI_MODEL);
     const settings = body.settings || {};
 
     const persona = settings.persona || "Konsultan pertumbuhan UMKM";
@@ -107,16 +134,44 @@ Pertanyaan pengguna:
 ${message}`;
 
     const client = new GoogleGenerativeAI(apiKey);
-    const model = client.getGenerativeModel({ model: modelName });
 
-    const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
-      generationConfig: {
-        temperature: clamp(settings.temperature ?? 0.6, 0, 1),
-        topP: 0.9,
-        maxOutputTokens: maxOutputTokens(responseLength),
-      },
-    });
+    let result:
+      | Awaited<ReturnType<ReturnType<typeof client.getGenerativeModel>["generateContent"]>>
+      | null = null;
+    let lastError: unknown = null;
+
+    for (const modelName of modelCandidates) {
+      try {
+        const model = client.getGenerativeModel({ model: modelName });
+        result = await model.generateContent({
+          contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
+          generationConfig: {
+            temperature: clamp(settings.temperature ?? 0.6, 0, 1),
+            topP: 0.9,
+            maxOutputTokens: maxOutputTokens(responseLength),
+          },
+        });
+        break;
+      } catch (error) {
+        lastError = error;
+        if (!isModelUnavailableError(error)) {
+          throw error;
+        }
+      }
+    }
+
+    if (!result) {
+      const detail =
+        lastError instanceof Error ? lastError.message : "Tidak ada detail error.";
+      return NextResponse.json(
+        {
+          error:
+            "Model Gemini tidak tersedia. Set GEMINI_MODEL ke gemini-2.0-flash di Vercel Environment Variables, lalu redeploy. Detail: " +
+            detail,
+        },
+        { status: 502 },
+      );
+    }
 
     const reply = result.response.text()?.trim();
     if (!reply) {
