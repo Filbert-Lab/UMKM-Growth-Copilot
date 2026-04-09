@@ -301,8 +301,8 @@ export default function Home() {
         <div className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-[#f4d8a8]/40 blur-3xl" />
       </div>
 
-      <main className="reveal relative mx-auto grid max-w-7xl gap-5 lg:grid-cols-[320px_minmax(0,1fr)_320px]">
-        <aside className="card-surface interactive-surface rounded-2xl p-5">
+      <main className="reveal relative mx-auto grid max-w-7xl gap-5 lg:h-[calc(100vh-4rem)] lg:grid-cols-[320px_minmax(0,1fr)_320px]">
+        <aside className="card-surface interactive-surface panel-scroll flex flex-col overflow-y-auto rounded-2xl p-5">
           <h1 className="text-2xl font-semibold leading-tight text-[#3a1f1a]">
             UMKM Growth Copilot AI
           </h1>
@@ -450,7 +450,7 @@ export default function Home() {
           </div>
         </aside>
 
-        <section className="card-surface interactive-surface flex min-h-[70vh] flex-col rounded-2xl p-4 sm:p-6">
+        <section className="card-surface interactive-surface flex min-h-[70vh] flex-col overflow-hidden rounded-2xl p-4 lg:min-h-0 sm:p-6">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
               <p className="text-xs uppercase tracking-[0.18em] text-[#9d5b49]">
@@ -561,7 +561,7 @@ export default function Home() {
           </form>
         </section>
 
-        <aside className="card-surface interactive-surface rounded-2xl p-5">
+        <aside className="card-surface interactive-surface panel-scroll flex flex-col overflow-y-auto rounded-2xl p-5">
           <h3 className="text-lg font-semibold text-[#2f1a17]">
             Template Prompt Cepat
           </h3>
