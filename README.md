@@ -254,7 +254,7 @@ npm run dev
 
 ## Data Kelompok
 
-Nama Kelompok: Kelompok 7
+Nama Kelompok: Kelompok 7 (Codex)
 
 | NIM       | Nama            |
 | --------- | --------------- |
