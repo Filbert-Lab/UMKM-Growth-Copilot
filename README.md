@@ -36,14 +36,6 @@ Tujuan utama project ini:
 2. Invite dosen dilakukan manual oleh perwakilan kelompok ke email: kelvin.chen996@gmail.com.
 3. Submit tugas dilakukan oleh satu perwakilan kelompok sesuai instruksi.
 
-Langkah invite dosen di GitHub (manual):
-
-1. Buka repo GitHub.
-2. Masuk ke Settings > Collaborators.
-3. Klik Add people.
-4. Masukkan email kelvin.chen996@gmail.com.
-5. Kirim undangan dan pastikan status invitation terkirim.
-
 ## Ide Project AI
 
 ### Latar Belakang Masalah
