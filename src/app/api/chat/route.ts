@@ -378,77 +378,103 @@ function inferSopTopic(message: string) {
   const compact = message
     .replace(/buat(kan)?\s*/gi, "")
     .replace(/\bsop\b/gi, "")
-    .replace(/sederhana/gi, "")
-    .replace(/tolong|please/gi, "")
+    .replace(/\b(sederhana|tolong|please|dong|ya|mohon)\b/gi, "")
     .replace(/\s+/g, " ")
     .trim();
 
-  return compact || "menangani komplain pelanggan";
+  const cleaned = (compact || "menangani komplain pelanggan").replace(
+    /\buntuk\s+untuk\b/gi,
+    "untuk",
+  );
+
+  return cleaned;
 }
 
-function buildSopFocusedReply(reply: string, userMessage: string) {
-  const lines = reply
+function isComplaintSopRequest(message: string) {
+  return /komplain|keluhan|complaint/i.test(message);
+}
+
+function hasOperationalDetail(reply: string) {
+  const hasPic = /\bPIC\b/i.test(reply);
+  const hasSla = /\bSLA\b|\b[0-9]+\s*(menit|jam|hari)\b/i.test(reply);
+  return hasPic && hasSla;
+}
+
+function getDetailedNumberedSteps(reply: string) {
+  return reply
     .split("\n")
     .map((line) => line.trim())
-    .filter(Boolean);
-
-  const numberedSteps = lines
     .filter((line) => /^\d+[.)]\s+/.test(line))
     .map(cleanStepText)
-    .filter((step) => step.length > 0);
+    .filter((step) => step.length >= 25)
+    .slice(0, 8);
+}
 
-  const bulletSteps = lines
-    .filter((line) => /^[\-–•*]\s+/.test(line))
-    .map(cleanStepText)
-    .filter(
-      (step) =>
-        step.length > 0 &&
-        !/^(kpi|risiko|mitigasi|analisis|estimasi)/i.test(step),
-    );
+function buildComplaintSopReply(topic: string) {
+  return [
+    `Berikut SOP praktis untuk ${topic}.`,
+    "",
+    "Langkah SOP (detail tindakan + PIC + SLA):",
+    "1. Terima komplain dengan empati, validasi keluhan, lalu minta data inti (nama, nomor order, foto bukti). PIC: CS. SLA: respon awal maksimal 5 menit.",
+    "2. Klasifikasikan jenis masalah (produk, pengiriman, pelayanan, pembayaran) dan tingkat urgensi. PIC: CS. SLA: maksimal 10 menit.",
+    "3. Verifikasi akar masalah ke tim terkait (gudang/kasir/kurir) berdasarkan data transaksi. PIC: Admin Operasional. SLA: maksimal 30 menit.",
+    "4. Berikan solusi yang jelas ke pelanggan (refund, tukar barang, kirim ulang, voucher) beserta batas waktu penyelesaian. PIC: CS + Supervisor. SLA: maksimal 15 menit setelah verifikasi.",
+    "5. Eksekusi solusi dan konfirmasi hasil ke pelanggan sampai pelanggan menyatakan masalah selesai. PIC: Tim Operasional. SLA: sesuai komitmen, umumnya < 24 jam.",
+    "6. Tutup kasus dengan mencatat penyebab, biaya kompensasi, dan tindakan pencegahan agar komplain serupa tidak berulang. PIC: Supervisor. SLA: laporan selesai di hari yang sama.",
+    "",
+    "Template respon cepat ke pelanggan:",
+    "Halo Kak, terima kasih sudah menghubungi kami. Mohon maaf atas kendalanya. Boleh kirim nomor order dan foto produk agar kami proses sekarang? Kami targetkan update pertama dalam 15 menit.",
+    "",
+    "Template log komplain:",
+    "- Tanggal/Jam masuk:",
+    "- Nama pelanggan:",
+    "- Nomor order:",
+    "- Kanal komplain (WA/IG/Marketplace):",
+    "- Jenis masalah:",
+    "- Akar masalah:",
+    "- Solusi yang dipilih:",
+    "- PIC penanganan:",
+    "- SLA komitmen:",
+    "- Status akhir (selesai/belum):",
+  ].join("\n");
+}
 
-  const chosenSteps = (numberedSteps.length >= 2 ? numberedSteps : bulletSteps)
-    .slice(0, 8)
-    .map((step, index) => `${index + 1}. ${step}`);
-
-  const topic = inferSopTopic(userMessage);
-
-  if (chosenSteps.length === 0) {
-    return [
-      `Berikut SOP sederhana untuk ${topic}.`,
-      "",
-      "Langkah SOP:",
-      "1. Terima komplain dengan sopan dan catat detail masalah secara lengkap.",
-      "2. Verifikasi akar masalah dan tentukan solusi yang realistis.",
-      "3. Komunikasikan solusi dan estimasi waktu penyelesaian ke pelanggan.",
-      "4. Tindak lanjuti sampai pelanggan konfirmasi masalah selesai.",
-      "5. Evaluasi kasus untuk mencegah komplain serupa terulang.",
-      "",
-      "Template catatan SOP:",
-      "- Nama pelanggan:",
-      "- Keluhan utama:",
-      "- Akar masalah:",
-      "- Solusi yang diberikan:",
-      "- PIC:",
-      "- Deadline penyelesaian:",
-      "- Status akhir:",
-    ].join("\n");
-  }
-
+function buildGenericSopReply(topic: string) {
   return [
     `Berikut SOP sederhana untuk ${topic}.`,
     "",
-    "Langkah SOP:",
-    ...chosenSteps,
+    "Langkah SOP (detail tindakan + PIC + SLA):",
+    "1. Tetapkan tujuan SOP dan indikator keberhasilan yang terukur. PIC: Owner/Manager. SLA: 1 hari.",
+    "2. Petakan alur kerja dari awal sampai selesai dan titik rawan error. PIC: Supervisor Operasional. SLA: 1 hari.",
+    "3. Definisikan langkah kerja rinci per peran, termasuk input/output tiap langkah. PIC: Supervisor + Tim terkait. SLA: 1 hari.",
+    "4. Buat standar waktu layanan (SLA), standar kualitas, dan eskalasi bila terjadi kendala. PIC: Manager Operasional. SLA: 1 hari.",
+    "5. Uji coba SOP selama 3-7 hari, kumpulkan feedback, lalu revisi bagian yang tidak efektif. PIC: QA/Internal Control. SLA: 7 hari.",
+    "6. Finalisasi SOP, sosialisasi ke tim, dan review berkala minimal bulanan. PIC: Owner/Manager. SLA: berkelanjutan.",
     "",
-    "Template catatan SOP:",
-    "- Nama pelanggan:",
-    "- Keluhan utama:",
-    "- Akar masalah:",
-    "- Solusi yang diberikan:",
-    "- PIC:",
-    "- Deadline penyelesaian:",
-    "- Status akhir:",
+    "Template dokumen SOP:",
+    "- Tujuan SOP:",
+    "- Ruang lingkup:",
+    "- PIC per langkah:",
+    "- SLA per langkah:",
+    "- Form/checklist yang digunakan:",
+    "- Mekanisme eskalasi:",
+    "- Jadwal evaluasi:",
   ].join("\n");
+}
+
+function buildSopFocusedReply(reply: string, userMessage: string) {
+  const topic = inferSopTopic(userMessage);
+  const detailedSteps = getDetailedNumberedSteps(reply);
+  const hasEnoughSteps = detailedSteps.length >= 5;
+  const hasOpsDetails = hasOperationalDetail(reply);
+
+  if (hasEnoughSteps && hasOpsDetails) {
+    return reply;
+  }
+
+  return isComplaintSopRequest(userMessage)
+    ? buildComplaintSopReply(topic)
+    : buildGenericSopReply(topic);
 }
 
 function toGroqMessages(
@@ -555,7 +581,7 @@ export async function POST(request: Request) {
     const analyticalSectionsRequested = asksForAnalyticalSections(message);
 
     const responseModeInstruction = sopRequest
-      ? "Untuk permintaan SOP, berikan jawaban langsung berupa SOP yang siap dipakai dengan urutan: Tujuan SOP singkat, Langkah SOP bernomor, dan contoh template singkat yang bisa langsung dipakai tim."
+      ? "Untuk permintaan SOP, berikan jawaban SOP siap pakai dan sangat spesifik. Setiap langkah wajib memuat tindakan detail, PIC, dan SLA waktu. Tambahkan contoh template atau skrip komunikasi yang bisa langsung dipakai tim. Hindari langkah yang terlalu umum atau hanya berupa judul singkat."
       : "Jawab langsung ke inti permintaan pengguna dengan langkah praktis yang bisa langsung dijalankan.";
 
     const optionalSectionInstruction = analyticalSectionsRequested
