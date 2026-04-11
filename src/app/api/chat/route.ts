@@ -289,6 +289,168 @@ function buildModelCandidates(preferredModel?: string) {
   return [...new Set(all)];
 }
 
+function isSopRequest(message: string) {
+  return /\bsop\b|standar\s+operasional/i.test(message);
+}
+
+function asksForAnalyticalSections(message: string) {
+  return /\banalisis\b|\bkpi\b|risiko|mitigasi|estimasi\s+dampak/i.test(
+    message,
+  );
+}
+
+function normalizeReplyStyle(reply: string) {
+  return reply
+    .replace(/\*\*/g, "")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/^[ \t]*#{1,6}\s*/gm, "")
+    .replace(/^\s*\*\s+/gm, "- ")
+    .replace(/\r\n/g, "\n")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function normalizeHeadingCandidate(line: string) {
+  return line.trim().replace(/^[\-–•*\d.)\s]+/, "");
+}
+
+function isAnalyticalHeading(line: string) {
+  const heading = normalizeHeadingCandidate(line).toLowerCase();
+  return (
+    heading.startsWith("analisis") ||
+    heading.startsWith("kpi") ||
+    heading.startsWith("risiko") ||
+    heading.startsWith("mitigasi") ||
+    heading.startsWith("estimasi dampak")
+  );
+}
+
+function isLikelyHeading(line: string) {
+  const heading = normalizeHeadingCandidate(line);
+  return /^[A-Za-z][A-Za-z\s()\-/]{1,50}:?$/.test(heading);
+}
+
+function stripUnrequestedAnalyticalSections(reply: string) {
+  const lines = reply.split("\n");
+  const kept: string[] = [];
+  let skippingAnalytical = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    const heading = normalizeHeadingCandidate(trimmed);
+
+    if (isAnalyticalHeading(trimmed)) {
+      skippingAnalytical = true;
+      continue;
+    }
+
+    if (/^aksi\s+prioritas\s*:?$/i.test(heading)) {
+      skippingAnalytical = false;
+      kept.push("Langkah SOP:");
+      continue;
+    }
+
+    if (skippingAnalytical && isLikelyHeading(trimmed)) {
+      skippingAnalytical = false;
+    }
+
+    if (!skippingAnalytical) {
+      kept.push(line);
+    }
+  }
+
+  return kept
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function cleanStepText(step: string) {
+  return step
+    .replace(/^\d+[.)]\s*/, "")
+    .replace(/^[\-–•*]\s*/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function inferSopTopic(message: string) {
+  const compact = message
+    .replace(/buat(kan)?\s*/gi, "")
+    .replace(/\bsop\b/gi, "")
+    .replace(/sederhana/gi, "")
+    .replace(/tolong|please/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return compact || "menangani komplain pelanggan";
+}
+
+function buildSopFocusedReply(reply: string, userMessage: string) {
+  const lines = reply
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const numberedSteps = lines
+    .filter((line) => /^\d+[.)]\s+/.test(line))
+    .map(cleanStepText)
+    .filter((step) => step.length > 0);
+
+  const bulletSteps = lines
+    .filter((line) => /^[\-–•*]\s+/.test(line))
+    .map(cleanStepText)
+    .filter(
+      (step) =>
+        step.length > 0 &&
+        !/^(kpi|risiko|mitigasi|analisis|estimasi)/i.test(step),
+    );
+
+  const chosenSteps = (numberedSteps.length >= 2 ? numberedSteps : bulletSteps)
+    .slice(0, 8)
+    .map((step, index) => `${index + 1}. ${step}`);
+
+  const topic = inferSopTopic(userMessage);
+
+  if (chosenSteps.length === 0) {
+    return [
+      `Berikut SOP sederhana untuk ${topic}.`,
+      "",
+      "Langkah SOP:",
+      "1. Terima komplain dengan sopan dan catat detail masalah secara lengkap.",
+      "2. Verifikasi akar masalah dan tentukan solusi yang realistis.",
+      "3. Komunikasikan solusi dan estimasi waktu penyelesaian ke pelanggan.",
+      "4. Tindak lanjuti sampai pelanggan konfirmasi masalah selesai.",
+      "5. Evaluasi kasus untuk mencegah komplain serupa terulang.",
+      "",
+      "Template catatan SOP:",
+      "- Nama pelanggan:",
+      "- Keluhan utama:",
+      "- Akar masalah:",
+      "- Solusi yang diberikan:",
+      "- PIC:",
+      "- Deadline penyelesaian:",
+      "- Status akhir:",
+    ].join("\n");
+  }
+
+  return [
+    `Berikut SOP sederhana untuk ${topic}.`,
+    "",
+    "Langkah SOP:",
+    ...chosenSteps,
+    "",
+    "Template catatan SOP:",
+    "- Nama pelanggan:",
+    "- Keluhan utama:",
+    "- Akar masalah:",
+    "- Solusi yang diberikan:",
+    "- PIC:",
+    "- Deadline penyelesaian:",
+    "- Status akhir:",
+  ].join("\n");
+}
+
 function toGroqMessages(
   systemInstruction: string,
   history: RequestMessage[],
@@ -389,6 +551,16 @@ export async function POST(request: Request) {
       cleanedHistory,
       message,
     );
+    const sopRequest = isSopRequest(message);
+    const analyticalSectionsRequested = asksForAnalyticalSections(message);
+
+    const responseModeInstruction = sopRequest
+      ? "Untuk permintaan SOP, berikan jawaban langsung berupa SOP yang siap dipakai dengan urutan: Tujuan SOP singkat, Langkah SOP bernomor, dan contoh template singkat yang bisa langsung dipakai tim."
+      : "Jawab langsung ke inti permintaan pengguna dengan langkah praktis yang bisa langsung dijalankan.";
+
+    const optionalSectionInstruction = analyticalSectionsRequested
+      ? "Karena pengguna menyinggung analisis/KPI/risiko, kamu boleh menambah bagian tersebut secara ringkas."
+      : "Jangan tambahkan bagian Analisis, KPI, Risiko, Mitigasi, atau Estimasi Dampak jika pengguna tidak memintanya secara eksplisit.";
 
     const systemInstruction = `
 Kamu adalah ${persona} untuk pelaku UMKM Indonesia.
@@ -399,12 +571,13 @@ Sektor bisnis pengguna: ${sector}.
 
 Aturan jawaban:
 1. Jawaban harus konkret, bisa dieksekusi, dan berdampak pada peningkatan omzet atau efisiensi.
-  2. Jangan ulangi salam/perkenalan jika percakapan sudah berjalan.
-  3. Jangan gunakan markdown seperti **, #, atau tabel markdown.
-  4. Gunakan format teks biasa dengan bagian: Analisis Singkat, Aksi Prioritas, KPI, Risiko dan Mitigasi, Estimasi Dampak.
-  5. Jika pengguna meminta strategi dengan periode waktu (contoh: 14 hari), berikan rencana terjadwal sesuai periode tersebut.
-  6. Hindari jawaban terlalu umum.
-  7. ${responseLengthGuidance(responseLength)}
+2. Jangan ulangi salam/perkenalan jika percakapan sudah berjalan.
+3. Gunakan teks polos, jangan gunakan markdown seperti **, *, #, atau tabel markdown.
+4. ${responseModeInstruction}
+5. ${optionalSectionInstruction}
+6. Jika pengguna meminta strategi dengan periode waktu (contoh: 14 hari), berikan rencana terjadwal sesuai periode tersebut.
+7. Hindari jawaban terlalu umum dan hindari pengantar panjang yang tidak diminta.
+8. ${responseLengthGuidance(responseLength)}
 `.trim();
 
     const groqMessages = toGroqMessages(
@@ -452,7 +625,16 @@ Aturan jawaban:
       );
     }
 
-    return NextResponse.json({ reply });
+    const cleanedReply = normalizeReplyStyle(reply);
+    const strippedReply = analyticalSectionsRequested
+      ? cleanedReply
+      : stripUnrequestedAnalyticalSections(cleanedReply);
+    const finalReply =
+      sopRequest && !analyticalSectionsRequested
+        ? buildSopFocusedReply(strippedReply, message)
+        : strippedReply;
+
+    return NextResponse.json({ reply: finalReply });
   } catch (error) {
     const message = toUserFriendlyError(error);
     return NextResponse.json({ error: message }, { status: 500 });
