@@ -79,6 +79,113 @@ body {
   box-shadow: 0 0 0 3px rgba(216, 111, 69, 0.22);
 }
 
+.dropdown {
+  position: relative;
+}
+
+.dropdown-trigger {
+  width: 100%;
+  border-radius: 0.85rem;
+  border: 1px solid #d6b3a8;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 0.58rem 0.8rem;
+  font-size: 0.92rem;
+  color: #2e1917;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  transition:
+    border-color 0.2s var(--ease-smooth),
+    box-shadow 0.2s var(--ease-smooth),
+    background-color 0.2s var(--ease-smooth),
+    transform 0.22s var(--ease-smooth);
+}
+
+.dropdown-trigger:hover {
+  border-color: #ca907d;
+  background: #fffdfa;
+}
+
+.dropdown-trigger.is-open {
+  border-color: var(--ring);
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(216, 111, 69, 0.16);
+}
+
+.dropdown-trigger:focus-visible {
+  outline: none;
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px rgba(216, 111, 69, 0.22);
+}
+
+.dropdown-caret {
+  font-size: 1rem;
+  line-height: 1;
+  color: #6a4a44;
+  transition: transform 0.24s var(--ease-smooth);
+}
+
+.dropdown-trigger.is-open .dropdown-caret {
+  transform: rotate(180deg);
+}
+
+.dropdown-menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 0.4rem);
+  z-index: 40;
+  border-radius: 0.9rem;
+  border: 1px solid #ddb4a7;
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 10px 26px rgba(106, 53, 40, 0.16);
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-8px) scale(0.985);
+  transform-origin: top;
+  transition:
+    opacity 0.22s var(--ease-smooth),
+    transform 0.22s var(--ease-smooth);
+}
+
+.dropdown-menu.open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+.dropdown-option {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 0.62rem 0.8rem;
+  font-size: 0.92rem;
+  color: #3c221d;
+  transition:
+    background-color 0.2s var(--ease-smooth),
+    color 0.2s var(--ease-smooth);
+}
+
+.dropdown-option + .dropdown-option {
+  border-top: 1px solid rgba(204, 160, 144, 0.38);
+}
+
+.dropdown-option:hover,
+.dropdown-option:focus-visible {
+  outline: none;
+  background: #fff0e4;
+}
+
+.dropdown-option.is-active {
+  background: #ffdcca;
+  color: #592f25;
+  font-weight: 600;
+}
+
 .ui-btn {
   border-radius: 0.78rem;
   border: 1px solid #d19b88;

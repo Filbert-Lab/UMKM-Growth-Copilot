@@ -73,6 +73,106 @@ const toneOptions = [
   "Formal untuk presentasi investor",
 ];
 
+const businessScaleOptions: Array<{
+  value: Settings["businessScale"];
+  label: string;
+}> = [
+  { value: "mikro", label: "Mikro" },
+  { value: "kecil", label: "Kecil" },
+  { value: "menengah", label: "Menengah" },
+];
+
+const responseLengthOptions: Array<{
+  value: Settings["responseLength"];
+  label: string;
+}> = [
+  { value: "short", label: "Ringkas" },
+  { value: "medium", label: "Sedang" },
+  { value: "long", label: "Panjang" },
+];
+
+type SelectOption<TValue extends string> = {
+  value: TValue;
+  label: string;
+};
+
+type AnimatedSelectProps<TValue extends string> = {
+  value: TValue;
+  options: Array<SelectOption<TValue>>;
+  onChange: (value: TValue) => void;
+  className?: string;
+};
+
+function AnimatedSelect<TValue extends string>({
+  value,
+  options,
+  onChange,
+  className,
+}: AnimatedSelectProps<TValue>) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handlePointerDown = (event: globalThis.MouseEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    const handleEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, []);
+
+  const selected =
+    options.find((option) => option.value === value) || options[0];
+
+  return (
+    <div ref={rootRef} className={`dropdown ${className || ""}`.trim()}>
+      <button
+        type="button"
+        className={`dropdown-trigger ${open ? "is-open" : ""}`}
+        onClick={() => setOpen((prev) => !prev)}
+        aria-expanded={open}
+      >
+        <span>{selected?.label || "Pilih"}</span>
+        <span className="dropdown-caret" aria-hidden="true">
+          ⌄
+        </span>
+      </button>
+
+      <div className={`dropdown-menu ${open ? "open" : ""}`}>
+        {options.map((option, index) => (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => {
+              onChange(option.value);
+              setOpen(false);
+            }}
+            className={`dropdown-option ${option.value === value ? "is-active" : ""}`}
+            style={{
+              transitionDelay: open ? `${Math.min(index * 18, 90)}ms` : "0ms",
+            }}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function createId() {
   return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -329,58 +429,48 @@ export default function Home() {
           <div className="mt-6 space-y-4">
             <label className="block text-sm font-medium text-[#5c342d]">
               Persona AI
-              <select
-                className="control-field mt-1"
+              <AnimatedSelect
+                className="mt-1"
                 value={settings.persona}
-                onChange={(event) =>
+                options={personaOptions.map((persona) => ({
+                  value: persona,
+                  label: persona,
+                }))}
+                onChange={(persona) =>
                   setSettings((prev) => ({
                     ...prev,
-                    persona: event.target.value,
+                    persona,
                   }))
                 }
-              >
-                {personaOptions.map((persona) => (
-                  <option key={persona} value={persona}>
-                    {persona}
-                  </option>
-                ))}
-              </select>
+              />
             </label>
 
             <label className="block text-sm font-medium text-[#5c342d]">
               Gaya Jawaban
-              <select
-                className="control-field mt-1"
+              <AnimatedSelect
+                className="mt-1"
                 value={settings.tone}
-                onChange={(event) =>
-                  setSettings((prev) => ({ ...prev, tone: event.target.value }))
-                }
-              >
-                {toneOptions.map((tone) => (
-                  <option key={tone} value={tone}>
-                    {tone}
-                  </option>
-                ))}
-              </select>
+                options={toneOptions.map((tone) => ({
+                  value: tone,
+                  label: tone,
+                }))}
+                onChange={(tone) => setSettings((prev) => ({ ...prev, tone }))}
+              />
             </label>
 
             <label className="block text-sm font-medium text-[#5c342d]">
               Skala Bisnis
-              <select
-                className="control-field mt-1"
+              <AnimatedSelect
+                className="mt-1"
                 value={settings.businessScale}
-                onChange={(event) =>
+                options={businessScaleOptions}
+                onChange={(businessScale) =>
                   setSettings((prev) => ({
                     ...prev,
-                    businessScale: event.target
-                      .value as Settings["businessScale"],
+                    businessScale,
                   }))
                 }
-              >
-                <option value="mikro">Mikro</option>
-                <option value="kecil">Kecil</option>
-                <option value="menengah">Menengah</option>
-              </select>
+              />
             </label>
 
             <label className="block text-sm font-medium text-[#5c342d]">
@@ -400,21 +490,17 @@ export default function Home() {
 
             <label className="block text-sm font-medium text-[#5c342d]">
               Panjang Respon
-              <select
-                className="control-field mt-1"
+              <AnimatedSelect
+                className="mt-1"
                 value={settings.responseLength}
-                onChange={(event) =>
+                options={responseLengthOptions}
+                onChange={(responseLength) =>
                   setSettings((prev) => ({
                     ...prev,
-                    responseLength: event.target
-                      .value as Settings["responseLength"],
+                    responseLength,
                   }))
                 }
-              >
-                <option value="short">Ringkas</option>
-                <option value="medium">Sedang</option>
-                <option value="long">Panjang</option>
-              </select>
+              />
             </label>
 
             <label className="block text-sm font-medium text-[#5c342d]">
