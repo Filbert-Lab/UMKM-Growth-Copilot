@@ -67,17 +67,18 @@ UMKM Growth Copilot AI menyediakan:
 ## Arsitektur Singkat Sistem
 
 1. Frontend: Next.js App Router (interface konsultasi dan business tools).
-2. Backend: API route Next.js di endpoint /api/chat.
-3. AI Provider: Groq API (OpenAI-compatible chat completions).
+2. Backend: API route Next.js di endpoint /api/chat dan /api/generate-image.
+3. AI Provider: Groq API (prompt enhancement + chat completions) dan Hugging Face Inference API (generasi gambar).
 4. Storage lokal: localStorage untuk riwayat chat, preferensi, dan workspace insight tim.
 5. Deployment: Vercel.
 
 Alur penggunaan:
 
-1. Pengguna memilih persona, tone, bahasa, skala bisnis, dan sektor.
-2. Pengguna mengirim prompt ke endpoint /api/chat.
-3. Sistem mengirim konteks ke model Groq dan menerima jawaban.
-4. Jawaban ditampilkan, dapat disalin, diekspor, serta dilanjutkan dengan tools lanjutan.
+1. Pengguna memilih persona, tone, bahasa, skala bisnis, sektor, dan mode output (chat/gambar).
+2. Pengguna mengirim prompt ke endpoint /api/chat saat mode chat aktif.
+3. Pada mode gambar, sistem mengirim prompt ke /api/generate-image.
+4. Endpoint gambar memperkaya prompt dengan Groq lalu membuat gambar melalui Hugging Face.
+5. Jawaban chat atau gambar ditampilkan, dapat dilanjutkan dengan tools lanjutan, serta chat teks dapat diekspor.
 
 ## Daftar Fitur Penting (24 Fitur)
 
@@ -186,17 +187,19 @@ Tujuan kategori ini: memberikan alat bantu langsung untuk pengambilan keputusan 
 
 1. Next.js 16 + TypeScript
 2. Tailwind CSS v4 + custom CSS
-3. Groq API chat completions
-4. Vercel (hosting/deployment)
-5. localStorage (persistensi data sisi klien)
+3. Groq API chat completions + prompt enhancement
+4. Hugging Face Inference API (FLUX.1-schnell)
+5. Vercel (hosting/deployment)
+6. localStorage (persistensi data sisi klien)
 
 ## Struktur Project Inti
 
 1. src/app/page.tsx: halaman utama UI konsultasi.
 2. src/app/advanced-tools.tsx: modul fitur lanjutan (fitur 16-24).
 3. src/app/api/chat/route.ts: API route untuk integrasi Groq.
-4. src/app/globals.css: style global dan interaksi UI.
-5. .env.example: contoh konfigurasi environment.
+4. src/app/api/generate-image/route.ts: API route untuk alur Groq -> Hugging Face image generation.
+5. src/app/globals.css: style global dan interaksi UI.
+6. .env.local: konfigurasi environment lokal (buat manual, jangan di-commit).
 
 ## Cara Menjalankan Project Secara Lokal
 
@@ -212,7 +215,14 @@ npm install
 ```bash
 GROQ_API_KEY=YOUR_GROQ_API_KEY
 GROQ_MODEL=llama-3.1-8b-instant
+HF_API_KEY=YOUR_HUGGING_FACE_API_KEY
 ```
+
+Keamanan API key:
+
+1. Jangan hardcode API key di source code.
+2. Jangan commit .env.local ke repository.
+3. Jika API key pernah terekspos, segera lakukan rotasi token di dashboard provider.
 
 4. Jalankan development server:
 
@@ -228,6 +238,7 @@ npm run dev
 2. Tambahkan Environment Variables berikut:
    - GROQ_API_KEY
    - GROQ_MODEL=llama-3.1-8b-instant
+   - HF_API_KEY
 3. Jalankan redeploy.
 
 ## Skenario Demo Untuk Dosen

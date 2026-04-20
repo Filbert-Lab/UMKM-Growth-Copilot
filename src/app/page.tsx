@@ -11,6 +11,7 @@ import {
 import { AdvancedTools } from "./advanced-tools";
 
 type ChatRole = "user" | "assistant";
+type ChatMode = "chat" | "gambar";
 
 type ChatMessage = {
   id: string;
@@ -36,7 +37,7 @@ const baseWelcome: ChatMessage = {
   id: "welcome-message",
   role: "assistant",
   content:
-    "Halo, saya UMKM Growth Copilot. Ceritakan kondisi bisnismu, lalu saya bantu strategi marketing, operasional, dan keuangan yang bisa langsung dieksekusi.",
+    "Halo, saya UMKM Growth Copilot. Pilih mode Chat untuk konsultasi strategi bisnis atau mode Gambar untuk membuat materi promosi visual produk UMKM.",
   createdAt: new Date().toISOString(),
 };
 
@@ -95,6 +96,11 @@ type SelectOption<TValue extends string> = {
   value: TValue;
   label: string;
 };
+
+const modeOptions: Array<SelectOption<ChatMode>> = [
+  { value: "chat", label: "Konsultasi Chat" },
+  { value: "gambar", label: "Generator Gambar" },
+];
 
 type AnimatedSelectProps<TValue extends string> = {
   value: TValue;
@@ -177,11 +183,18 @@ function createId() {
   return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function isImageDataUrl(content: string) {
+  return content.startsWith("data:image/");
+}
+
 function toExportMarkdown(messages: ChatMessage[]) {
   return messages
     .map((message) => {
       const speaker = message.role === "assistant" ? "AI" : "Pengguna";
-      return `## ${speaker}\n${message.content}`;
+      const exportedContent = isImageDataUrl(message.content)
+        ? "[Gambar AI tidak disertakan pada export markdown untuk menjaga ukuran file.]"
+        : message.content;
+      return `## ${speaker}\n${exportedContent}`;
     })
     .join("\n\n");
 }
@@ -190,6 +203,7 @@ export default function Home() {
   const [messages, setMessages] = useState<ChatMessage[]>([baseWelcome]);
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [draft, setDraft] = useState("");
+  const [mode, setMode] = useState<ChatMode>("chat");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -209,7 +223,17 @@ export default function Home() {
       try {
         const parsed = JSON.parse(storedMessages) as ChatMessage[];
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setMessages(parsed);
+          const sanitized = parsed.filter(
+            (item): item is ChatMessage =>
+              Boolean(item) &&
+              (item.role === "assistant" || item.role === "user") &&
+              typeof item.id === "string" &&
+              typeof item.content === "string" &&
+              typeof item.createdAt === "string" &&
+              !isImageDataUrl(item.content),
+          );
+
+          setMessages(sanitized.length > 0 ? sanitized : [baseWelcome]);
         }
       } catch {
         setMessages([baseWelcome]);
@@ -227,7 +251,13 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    window.localStorage.setItem(MESSAGE_STORAGE, JSON.stringify(messages));
+    const persistableMessages = messages.filter(
+      (item) => !isImageDataUrl(item.content),
+    );
+    window.localStorage.setItem(
+      MESSAGE_STORAGE,
+      JSON.stringify(persistableMessages),
+    );
   }, [messages]);
 
   useEffect(() => {
@@ -247,10 +277,13 @@ export default function Home() {
   }, [messages, isLoading]);
 
   const stats = useMemo(() => {
-    const totalChars = messages.reduce(
-      (total, item) => total + item.content.length,
-      0,
-    );
+    const totalChars = messages.reduce((total, item) => {
+      if (isImageDataUrl(item.content)) {
+        return total;
+      }
+
+      return total + item.content.length;
+    }, 0);
     const assistantReplies = messages.filter(
       (item) => item.role === "assistant",
     ).length;
@@ -299,17 +332,25 @@ export default function Home() {
     setIsLoading(true);
     setError(null);
 
+    const isImageMode = mode === "gambar";
+    const endpoint = isImageMode ? "/api/generate-image" : "/api/chat";
+    const requestPayload = isImageMode
+      ? JSON.stringify({
+          prompt: trimmed,
+        })
+      : JSON.stringify({
+          message: trimmed,
+          settings,
+          history: nextHistory.slice(-10),
+        });
+
     try {
-      const response = await fetch("/api/chat", {
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          message: trimmed,
-          settings,
-          history: nextHistory.slice(-10),
-        }),
+        body: requestPayload,
       });
 
       if (!response.ok) {
@@ -393,8 +434,11 @@ export default function Home() {
   async function copyLatestAnswer() {
     const latestAnswer = [...messages]
       .reverse()
-      .find((item) => item.role === "assistant");
+      .find(
+        (item) => item.role === "assistant" && !isImageDataUrl(item.content),
+      );
     if (!latestAnswer) {
+      setError("Belum ada jawaban teks AI untuk disalin.");
       return;
     }
     await navigator.clipboard.writeText(latestAnswer.content);
@@ -558,7 +602,9 @@ export default function Home() {
                 Live AI Session
               </p>
               <h2 className="text-xl font-semibold text-[#2c1714]">
-                Konsultasi Bisnis Berbasis Groq
+                {mode === "gambar"
+                  ? "Generator Visual Produk UMKM"
+                  : "Konsultasi Bisnis Berbasis Groq"}
               </h2>
             </div>
             <div className="flex gap-2">
@@ -594,7 +640,7 @@ export default function Home() {
               replies: {stats.assistantReplies}
             </span>
             <span className="ui-chip bg-[#eadfef] text-[#4d3564]">
-              est. tokens: {stats.estimatedTokens}
+              est. tokens (teks): {stats.estimatedTokens}
             </span>
           </div>
 
@@ -602,41 +648,71 @@ export default function Home() {
             ref={chatScrollRef}
             className="panel-scroll flex-1 space-y-3 overflow-y-auto rounded-xl bg-white/55 p-3"
           >
-            {messages.map((message, index) => (
-              <article
-                key={message.id}
-                className={`reveal message-card rounded-2xl p-3 ${
-                  message.role === "assistant"
-                    ? "mr-8 border border-[#dcb0a2] bg-[#fff9f3]"
-                    : "ml-8 border border-[#c7a190] bg-[#ffe7d7]"
-                }`}
-                style={{ animationDelay: `${Math.min(index * 40, 240)}ms` }}
-              >
-                <p className="mb-1 text-xs uppercase tracking-[0.1em] text-[#7c5046]">
-                  {message.role === "assistant" ? "AI Advisor" : "Anda"}
-                </p>
-                <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#2e1815]">
-                  {message.content}
-                </p>
-              </article>
-            ))}
+            {messages.map((message, index) => {
+              const messageIsImage = isImageDataUrl(message.content);
+
+              return (
+                <article
+                  key={message.id}
+                  className={`reveal message-card rounded-2xl p-3 ${
+                    message.role === "assistant"
+                      ? "mr-8 border border-[#dcb0a2] bg-[#fff9f3]"
+                      : "ml-8 border border-[#c7a190] bg-[#ffe7d7]"
+                  }`}
+                  style={{ animationDelay: `${Math.min(index * 40, 240)}ms` }}
+                >
+                  <p className="mb-1 text-xs uppercase tracking-[0.1em] text-[#7c5046]">
+                    {message.role === "assistant" ? "AI Advisor" : "Anda"}
+                  </p>
+                  {messageIsImage ? (
+                    // Data URL image is generated at runtime and not suitable for next/image optimization.
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={message.content}
+                      alt="AI Generated"
+                      className="mt-2 w-full max-w-sm rounded-lg shadow-md object-cover"
+                    />
+                  ) : (
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#2e1815]">
+                      {message.content}
+                    </p>
+                  )}
+                </article>
+              );
+            })}
 
             {isLoading ? (
               <div className="inline-flex items-center gap-2 rounded-full bg-[#fff0df] px-4 py-2 text-sm text-[#7f4a3f] shadow-sm">
                 <span className="h-2 w-2 animate-pulse rounded-full bg-[#cf704f]" />
-                AI sedang menyusun rekomendasi...
+                {mode === "gambar"
+                  ? "AI sedang membuat visual promosi..."
+                  : "AI sedang menyusun rekomendasi..."}
               </div>
             ) : null}
           </div>
 
           <form onSubmit={sendPrompt} className="mt-4 space-y-3">
+            <label className="block text-sm font-medium text-[#5c342d]">
+              Mode Output
+              <AnimatedSelect
+                className="mt-1"
+                value={mode}
+                options={modeOptions}
+                onChange={(nextMode) => setMode(nextMode)}
+              />
+            </label>
+
             <textarea
               ref={textareaRef}
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
               onKeyDown={handleHotkey}
               rows={5}
-              placeholder="Contoh: Toko saya omzet stagnan 6 bulan terakhir. Tolong beri langkah perbaikan 30 hari yang realistis."
+              placeholder={
+                mode === "gambar"
+                  ? "Contoh: Produk kopi susu botolan dengan pencahayaan studio, latar kayu hangat, gaya iklan Instagram."
+                  : "Contoh: Toko saya omzet stagnan 6 bulan terakhir. Tolong beri langkah perbaikan 30 hari yang realistis."
+              }
               className="control-field min-h-[148px] resize-none p-3 text-sm leading-relaxed"
             />
 
@@ -650,7 +726,13 @@ export default function Home() {
                 disabled={!draft.trim() || isLoading}
                 className="ui-btn ui-btn-primary px-5 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-55"
               >
-                {isLoading ? "Memproses..." : "Kirim ke Groq"}
+                {isLoading
+                  ? mode === "gambar"
+                    ? "Membuat gambar..."
+                    : "Memproses..."
+                  : mode === "gambar"
+                    ? "Buat Gambar"
+                    : "Kirim ke Groq"}
               </button>
             </div>
 
@@ -689,7 +771,7 @@ export default function Home() {
             Fitur Aktif Saat Ini
           </h3>
           <ul className="mt-3 space-y-2 text-sm text-[#5a3f3b]">
-            <li>- Chat AI realtime dengan Groq API</li>
+            <li>- Chat AI realtime + mode generator gambar promosi</li>
             <li>- Konteks persona, tone, bahasa, sektor, dan skala usaha</li>
             <li>- Penyimpanan lokal riwayat konsultasi otomatis</li>
             <li>- Export konsultasi ke file Markdown</li>
