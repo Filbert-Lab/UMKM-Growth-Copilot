@@ -214,6 +214,7 @@ export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerTab, setDrawerTab] = useState<"templates" | "tools">("templates");
+  const [zoomedImage, setZoomedImage] = useState<{ url: string; id: string } | null>(null);
   const requestLockRef = useRef(false);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -649,11 +650,10 @@ export default function Home() {
                     {message.role === "assistant" ? "AI Advisor" : "Anda"}
                   </p>
                   {messageIsImage ? (
-                    <a
-                      href={message.content}
-                      download={`umkm-promosi-${message.id}.png`}
-                      className="relative block mt-2 w-full max-w-sm group overflow-hidden rounded-lg shadow-md border border-[#e4c9c1]"
-                      title="Klik untuk mengunduh gambar"
+                    <button
+                      onClick={() => setZoomedImage({ url: message.content, id: message.id })}
+                      className="relative block mt-2 w-full max-w-sm group overflow-hidden rounded-lg shadow-md border border-[#e4c9c1] cursor-pointer"
+                      title="Klik untuk memperbesar gambar"
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={message.content} alt="AI Generated"
@@ -661,14 +661,15 @@ export default function Home() {
                       <div className="absolute inset-0 bg-[#2f1a17]/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-[2px]">
                         <div className="bg-white/95 text-[#be5d3d] rounded-full p-3 transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 shadow-xl flex items-center gap-2">
                           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="7 10 12 15 17 10"></polyline>
-                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            <line x1="11" y1="8" x2="11" y2="14"></line>
+                            <line x1="8" y1="11" x2="14" y2="11"></line>
                           </svg>
-                          <span className="text-xs font-bold pr-1">Unduh</span>
+                          <span className="text-xs font-bold pr-1">Zoom</span>
                         </div>
                       </div>
-                    </a>
+                    </button>
                   ) : (
                     <div className="text-sm text-[#2e1815]">
                       <ReactMarkdown
@@ -829,6 +830,45 @@ export default function Home() {
           )}
         </div>
       </div>
+      {zoomedImage && (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-[#1a1110]/80 backdrop-blur-sm p-4 transition-opacity duration-300"
+          onClick={() => setZoomedImage(null)}
+        >
+          <div 
+            className="relative max-w-4xl w-full flex flex-col items-center transform transition-transform duration-300 scale-100"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setZoomedImage(null)}
+              className="absolute -top-12 right-0 text-white hover:text-[#f4dcd4] bg-[#3a1f1a]/50 hover:bg-[#3a1f1a] rounded-full p-2 transition-colors shadow-sm"
+              title="Tutup (Esc)"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+            <img 
+              src={zoomedImage.url} 
+              alt="Zoomed AI Generated" 
+              className="w-full h-auto max-h-[75vh] object-contain rounded-lg shadow-2xl" 
+            />
+            <a
+              href={zoomedImage.url}
+              download={`umkm-promosi-${zoomedImage.id}.png`}
+              className="mt-6 flex items-center gap-2 bg-gradient-to-r from-[#be5d3d] to-[#d57852] hover:from-[#a74f33] hover:to-[#c66b49] text-white px-6 py-3 rounded-full font-semibold shadow-lg transition-all transform hover:scale-105"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              Unduh Gambar
+            </a>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
