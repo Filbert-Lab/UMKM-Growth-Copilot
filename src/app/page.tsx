@@ -710,17 +710,23 @@ export default function Home() {
             <div>
               <p className="category-title">Template Prompt Cepat</p>
               <p className="text-xs text-[#6f4f4a] mb-3">Klik template untuk menyisipkan ke kolom chat.</p>
-              <div className="space-y-2">
-                {promptTemplates.map((template) => (
+              <div className="grid grid-cols-1 gap-3">
+                {promptTemplates.map((template, index) => (
                   <button
                     key={template}
                     type="button"
                     onClick={() => { addTemplate(template); setDrawerOpen(false); }}
-                    className={`template-chip w-full rounded-xl border p-3 text-left text-sm text-[#412624] ${
+                    className={`template-chip w-full text-left text-sm text-[#412624] p-3.5 flex items-start gap-3.5 group ${
                       highlightTemplate === template ? "is-active" : ""
                     }`}
+                    style={{ animationDelay: `${index * 50}ms`, animationFillMode: "both" }}
                   >
-                    {template}
+                    <div className="flex-shrink-0 mt-0.5 w-7 h-7 rounded-full bg-gradient-to-br from-[#f8d4c7] to-[#e4a896] flex items-center justify-center text-[#9a4224] group-hover:scale-110 transition-transform shadow-inner">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                      </svg>
+                    </div>
+                    <span className="leading-relaxed font-medium">{template}</span>
                   </button>
                 ))}
               </div>
