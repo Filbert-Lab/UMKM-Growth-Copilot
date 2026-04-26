@@ -337,7 +337,12 @@ export default function Home() {
 
     const isImageMode = mode === "gambar";
     const endpoint = isImageMode ? "/api/generate-image" : "/api/chat";
-    const chatHistory = nextHistory.filter(msg => !isImageDataUrl(msg.content));
+    const chatHistory = nextHistory.map(msg => {
+      if (isImageDataUrl(msg.content)) {
+        return { ...msg, content: "[Sistem: Gambar telah berhasil dibuat dan ditampilkan kepada pengguna berdasarkan instruksi pengguna sebelumnya. Jika pengguna bertanya tentang gambar ini, jelaskan asumsi visual dari konsep gambar yang dibuat berdasarkan prompt pengguna.]" };
+      }
+      return msg;
+    });
     const requestPayload = isImageMode
       ? JSON.stringify({
           prompt: trimmed,
