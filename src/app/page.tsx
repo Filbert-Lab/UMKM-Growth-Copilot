@@ -629,9 +629,26 @@ export default function Home() {
                     {message.role === "assistant" ? "AI Advisor" : "Anda"}
                   </p>
                   {messageIsImage ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={message.content} alt="AI Generated"
-                      className="mt-2 w-full max-w-sm rounded-lg shadow-md object-cover" />
+                    <a
+                      href={message.content}
+                      download={`umkm-promosi-${message.id}.png`}
+                      className="relative block mt-2 w-full max-w-sm group overflow-hidden rounded-lg shadow-md border border-[#e4c9c1]"
+                      title="Klik untuk mengunduh gambar"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={message.content} alt="AI Generated"
+                        className="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-105" />
+                      <div className="absolute inset-0 bg-[#2f1a17]/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-[2px]">
+                        <div className="bg-white/95 text-[#be5d3d] rounded-full p-3 transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 shadow-xl flex items-center gap-2">
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                          </svg>
+                          <span className="text-xs font-bold pr-1">Unduh</span>
+                        </div>
+                      </div>
+                    </a>
                   ) : (
                     <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#2e1815]">
                       {message.content}
