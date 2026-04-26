@@ -335,6 +335,7 @@ export default function Home() {
 
     const isImageMode = mode === "gambar";
     const endpoint = isImageMode ? "/api/generate-image" : "/api/chat";
+    const chatHistory = nextHistory.filter(msg => !isImageDataUrl(msg.content));
     const requestPayload = isImageMode
       ? JSON.stringify({
           prompt: trimmed,
@@ -342,7 +343,7 @@ export default function Home() {
       : JSON.stringify({
           message: trimmed,
           settings,
-          history: nextHistory.slice(-10),
+          history: chatHistory.slice(-10),
         });
 
     try {
