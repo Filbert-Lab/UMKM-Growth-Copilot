@@ -598,25 +598,26 @@ export default function Home() {
           </div>
           <div className="chat-header-right">
             <div className="mode-switcher">
-              <button type="button" className={mode === "chat" ? "is-active" : ""}
+              <button type="button" className={mode === "chat" ? "is-active" : ""} title="Mode Chat Berbasis Teks"
                 onClick={() => setMode("chat")}>Chat</button>
-              <button type="button" className={mode === "gambar" ? "is-active" : ""}
+              <button type="button" className={mode === "gambar" ? "is-active" : ""} title="Mode Generator Visual"
                 onClick={() => setMode("gambar")}>Gambar</button>
             </div>
-            <button type="button" onClick={copyLatestAnswer}
+            <button type="button" onClick={copyLatestAnswer} title="Salin jawaban AI yang terakhir"
               className={`ui-btn ui-btn-soft ${copied ? "ui-btn-active" : ""}`}>
               {copied ? "✓ Tersalin" : "Copy"}
             </button>
-            <button type="button" onClick={exportConversation}
+            <button type="button" onClick={exportConversation} title="Unduh log percakapan dalam format Markdown"
               className={`ui-btn ui-btn-soft ${exported ? "ui-btn-active" : ""}`}>
               {exported ? "✓" : "Export MD"}
             </button>
-            <button type="button" onClick={clearConversation} className="ui-btn ui-btn-soft">
+            <button type="button" onClick={clearConversation} title="Bersihkan riwayat obrolan" className="ui-btn ui-btn-soft">
               Reset
             </button>
             <button
               type="button"
-              className="ui-btn ui-btn-primary ui-btn-lg"
+              className="ui-btn ui-btn-primary ui-btn-lg shadow-sm hover:shadow-md transition-shadow"
+              title="Buka panel template dan alat analitik (24 Fitur)"
               onClick={() => { setDrawerOpen(true); }}
             >
               Fitur &amp; Tools <span className="feature-badge ml-1">24</span>
@@ -636,6 +637,23 @@ export default function Home() {
           <div className="space-y-3 max-w-3xl mx-auto">
             {messages.map((message, index) => {
               const messageIsImage = isImageDataUrl(message.content);
+              
+              if (message.id === "welcome-message") {
+                return (
+                  <div key={message.id} className="flex flex-col items-center justify-center py-12 md:py-20 text-center reveal" style={{ animationDelay: `${Math.min(index * 40, 240)}ms` }}>
+                    <div className="w-20 h-20 bg-gradient-to-tr from-[#be5d3d] to-[#e4a896] rounded-[2rem] rotate-3 flex items-center justify-center mb-6 shadow-xl shadow-[#be5d3d]/20 transition-transform hover:rotate-12 hover:scale-105 duration-300">
+                      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl md:text-2xl font-bold text-[#3a1f1a] mb-3">Sistem AI Siap Digunakan</h3>
+                    <p className="text-[#6a5250] max-w-md mx-auto text-sm md:text-base leading-relaxed">
+                      {message.content}
+                    </p>
+                  </div>
+                );
+              }
+
               return (
                 <article
                   key={message.id}
