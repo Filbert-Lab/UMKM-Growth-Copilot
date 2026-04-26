@@ -18,22 +18,34 @@
 }
 
 @keyframes gradient-shift {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 body {
   background:
-    radial-gradient(circle at 84% 4%,
+    radial-gradient(
+      circle at 84% 4%,
       rgba(255, 175, 145, 0.4),
-      transparent 40%),
-    radial-gradient(circle at 12% 92%,
+      transparent 40%
+    ),
+    radial-gradient(
+      circle at 12% 92%,
       rgba(250, 195, 120, 0.4),
-      transparent 35%),
-    radial-gradient(circle at 50% 50%,
+      transparent 35%
+    ),
+    radial-gradient(
+      circle at 50% 50%,
       rgba(255, 230, 210, 0.2),
-      transparent 50%),
+      transparent 50%
+    ),
     var(--background);
   background-size: 200% 200%;
   animation: gradient-shift 30s ease infinite;
@@ -66,7 +78,9 @@ body {
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: rgba(197, 140, 116, 0.4) transparent;
-  transition: transform 0.35s var(--ease-smooth), opacity 0.35s var(--ease-smooth);
+  transition:
+    transform 0.35s var(--ease-smooth),
+    opacity 0.35s var(--ease-smooth);
   z-index: 30;
 }
 
@@ -137,6 +151,11 @@ body {
   flex-shrink: 0;
 }
 
+.chat-input-bar form {
+  max-width: 48rem;
+  margin: 0 auto;
+}
+
 .chat-input-row {
   display: flex;
   align-items: flex-end;
@@ -152,7 +171,9 @@ body {
 .chat-input-row:focus-within {
   border-color: var(--ring);
   background: #ffffff;
-  box-shadow: 0 8px 25px rgba(216, 111, 69, 0.12), 0 0 0 4px rgba(216, 111, 69, 0.1);
+  box-shadow:
+    0 8px 25px rgba(216, 111, 69, 0.12),
+    0 0 0 4px rgba(216, 111, 69, 0.1);
   transform: translateY(-1px);
 }
 
@@ -187,7 +208,10 @@ body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: transform 0.2s var(--ease-smooth), background 0.2s var(--ease-smooth), box-shadow 0.2s var(--ease-smooth);
+  transition:
+    transform 0.2s var(--ease-smooth),
+    background 0.2s var(--ease-smooth),
+    box-shadow 0.2s var(--ease-smooth);
 }
 
 .chat-send-btn:hover:not(:disabled) {
@@ -322,7 +346,9 @@ body {
   justify-content: center;
   cursor: pointer;
   font-size: 1.1rem;
-  transition: background 0.18s var(--ease-smooth), transform 0.18s var(--ease-smooth);
+  transition:
+    background 0.18s var(--ease-smooth),
+    transform 0.18s var(--ease-smooth);
 }
 
 .drawer-close:hover {
@@ -359,7 +385,9 @@ body {
   border-bottom: 2px solid transparent;
   cursor: pointer;
   white-space: nowrap;
-  transition: color 0.2s var(--ease-smooth), border-color 0.2s var(--ease-smooth);
+  transition:
+    color 0.2s var(--ease-smooth),
+    border-color 0.2s var(--ease-smooth);
   margin-bottom: -2px;
 }
 
@@ -390,7 +418,7 @@ body {
 }
 
 .category-title::before {
-  content: '';
+  content: "";
   display: inline-block;
   width: 3px;
   height: 14px;
@@ -403,13 +431,17 @@ body {
   background: rgba(255, 252, 246, 0.7);
   backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.6);
-  box-shadow: 0 8px 30px rgba(91, 46, 35, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  box-shadow:
+    0 8px 30px rgba(91, 46, 35, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
   transition: all 0.3s var(--ease-smooth);
 }
 
 .interactive-surface:hover {
   border-color: rgba(216, 111, 69, 0.4);
-  box-shadow: 0 14px 40px rgba(91, 46, 35, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 14px 40px rgba(91, 46, 35, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
   transform: translateY(-3px) scale(1.01);
 }
 
@@ -529,7 +561,7 @@ body {
     color 0.2s var(--ease-smooth);
 }
 
-.dropdown-option+.dropdown-option {
+.dropdown-option + .dropdown-option {
   border-top: 1px solid rgba(204, 160, 144, 0.38);
 }
 
@@ -623,20 +655,33 @@ body {
 .template-chip {
   position: relative;
   border: 1px solid rgba(255, 255, 255, 0.8);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.85), rgba(255, 245, 238, 0.6));
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.85),
+    rgba(255, 245, 238, 0.6)
+  );
   backdrop-filter: blur(10px);
   border-radius: 1.2rem;
-  box-shadow: 0 4px 16px rgba(145, 87, 63, 0.06), inset 0 2px 4px rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 4px 16px rgba(145, 87, 63, 0.06),
+    inset 0 2px 4px rgba(255, 255, 255, 0.9);
   transition: all 0.35s cubic-bezier(0.25, 0.8, 0.25, 1);
   overflow: hidden;
   z-index: 1;
 }
 
 .template-chip::before {
-  content: '';
+  content: "";
   position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: linear-gradient(135deg, rgba(216, 111, 69, 0.12), rgba(213, 120, 82, 0.04));
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(216, 111, 69, 0.12),
+    rgba(213, 120, 82, 0.04)
+  );
   z-index: -1;
   opacity: 0;
   transition: opacity 0.35s ease;
@@ -645,7 +690,9 @@ body {
 .template-chip:hover {
   transform: translateY(-3px) scale(1.015);
   border-color: rgba(216, 111, 69, 0.4);
-  box-shadow: 0 10px 28px rgba(145, 87, 63, 0.15), inset 0 2px 4px rgba(255, 255, 255, 1);
+  box-shadow:
+    0 10px 28px rgba(145, 87, 63, 0.15),
+    inset 0 2px 4px rgba(255, 255, 255, 1);
 }
 
 .template-chip:hover::before {
@@ -654,35 +701,57 @@ body {
 
 .template-chip.is-active {
   border-color: #be5d3d;
-  background: linear-gradient(135deg, rgba(255, 232, 219, 0.95), rgba(255, 220, 202, 0.85));
-  box-shadow: 0 0 0 3px rgba(190, 93, 61, 0.25), 0 8px 24px rgba(145, 87, 63, 0.2);
+  background: linear-gradient(
+    135deg,
+    rgba(255, 232, 219, 0.95),
+    rgba(255, 220, 202, 0.85)
+  );
+  box-shadow:
+    0 0 0 3px rgba(190, 93, 61, 0.25),
+    0 8px 24px rgba(145, 87, 63, 0.2);
   transform: scale(0.98);
 }
 
 .tool-card {
   position: relative;
   border: 1px solid rgba(255, 255, 255, 0.7);
-  background: linear-gradient(145deg, rgba(255, 252, 247, 0.95), rgba(255, 248, 240, 0.7));
+  background: linear-gradient(
+    145deg,
+    rgba(255, 252, 247, 0.95),
+    rgba(255, 248, 240, 0.7)
+  );
   backdrop-filter: blur(14px);
   border-radius: 1.4rem;
   padding: 1.25rem;
-  box-shadow: 0 8px 32px rgba(145, 87, 63, 0.08), inset 0 1px 2px rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 8px 32px rgba(145, 87, 63, 0.08),
+    inset 0 1px 2px rgba(255, 255, 255, 0.9);
   transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
   overflow: hidden;
 }
 
 .tool-card::after {
-  content: '';
+  content: "";
   position: absolute;
-  top: 0; left: 0; right: 0; height: 4px;
-  background: linear-gradient(90deg, transparent, rgba(190, 93, 61, 0.35), transparent);
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(190, 93, 61, 0.35),
+    transparent
+  );
   opacity: 0;
   transition: opacity 0.4s ease;
 }
 
 .tool-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 14px 44px rgba(145, 87, 63, 0.14), inset 0 1px 2px rgba(255, 255, 255, 1);
+  box-shadow:
+    0 14px 44px rgba(145, 87, 63, 0.14),
+    inset 0 1px 2px rgba(255, 255, 255, 1);
   border-color: rgba(216, 111, 69, 0.35);
 }
 
@@ -745,19 +814,25 @@ body {
   margin-top: 1rem;
   border-radius: 1rem;
   border: 1px solid rgba(190, 93, 61, 0.25);
-  background: linear-gradient(135deg, rgba(255, 246, 239, 0.98), rgba(255, 239, 229, 0.88));
+  background: linear-gradient(
+    135deg,
+    rgba(255, 246, 239, 0.98),
+    rgba(255, 239, 229, 0.88)
+  );
   padding: 0.85rem 1.1rem;
   font-size: 0.8rem;
   font-weight: 500;
   line-height: 1.5;
   overflow-wrap: anywhere;
   color: #4a2b28;
-  box-shadow: 0 4px 12px rgba(145, 87, 63, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  box-shadow:
+    0 4px 12px rgba(145, 87, 63, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
   position: relative;
 }
 
 .tool-result::before {
-  content: '✨';
+  content: "✨";
   position: absolute;
   top: -10px;
   right: -8px;
@@ -893,10 +968,12 @@ body {
   background: transparent;
   color: #7c5046;
   cursor: pointer;
-  transition: background 0.2s var(--ease-smooth), color 0.2s var(--ease-smooth);
+  transition:
+    background 0.2s var(--ease-smooth),
+    color 0.2s var(--ease-smooth);
 }
 
-.mode-switcher button+button {
+.mode-switcher button + button {
   border-left: 1px solid #d6b3a8;
 }
 
@@ -939,7 +1016,6 @@ body {
 }
 
 @media (max-width: 640px) {
-
   .tool-grid-2,
   .tool-grid-3 {
     grid-template-columns: minmax(0, 1fr);

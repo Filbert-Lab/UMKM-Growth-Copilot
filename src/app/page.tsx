@@ -154,7 +154,9 @@ function AnimatedSelect<TValue extends string>({
         aria-expanded={open}
       >
         <span>{selected?.label || "Pilih"}</span>
-        <span className="dropdown-caret" aria-hidden="true">&#8964;</span>
+        <span className="dropdown-caret" aria-hidden="true">
+          &#8964;
+        </span>
       </button>
 
       <div className={`dropdown-menu ${open ? "open" : ""}`}>
@@ -213,8 +215,13 @@ export default function Home() {
   );
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [drawerTab, setDrawerTab] = useState<"templates" | "tools">("templates");
-  const [zoomedImage, setZoomedImage] = useState<{ url: string; id: string } | null>(null);
+  const [drawerTab, setDrawerTab] = useState<"templates" | "tools">(
+    "templates",
+  );
+  const [zoomedImage, setZoomedImage] = useState<{
+    url: string;
+    id: string;
+  } | null>(null);
   const requestLockRef = useRef(false);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -344,9 +351,13 @@ export default function Home() {
 
     const isImageMode = mode === "gambar";
     const endpoint = isImageMode ? "/api/generate-image" : "/api/chat";
-    const chatHistory = nextHistory.map(msg => {
+    const chatHistory = nextHistory.map((msg) => {
       if (isImageDataUrl(msg.content)) {
-        return { ...msg, content: "[Sistem: Gambar telah berhasil dibuat dan ditampilkan kepada pengguna berdasarkan instruksi pengguna sebelumnya. Jika pengguna bertanya tentang gambar ini, jelaskan asumsi visual dari konsep gambar yang dibuat berdasarkan prompt pengguna.]" };
+        return {
+          ...msg,
+          content:
+            "[Sistem: Gambar telah berhasil dibuat dan ditampilkan kepada pengguna berdasarkan instruksi pengguna sebelumnya. Jika pengguna bertanya tentang gambar ini, jelaskan asumsi visual dari konsep gambar yang dibuat berdasarkan prompt pengguna.]",
+        };
       }
       return msg;
     });
@@ -469,9 +480,17 @@ export default function Home() {
   }
 
   function handleHotkey(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
-      void sendPrompt();
+    if (event.key !== "Enter") {
+      return;
     }
+
+    // Enter untuk kirim. Kombinasi dengan modifier tetap menambah baris baru.
+    if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
+      return;
+    }
+
+    event.preventDefault();
+    void sendPrompt();
   }
 
   function autoResize(el: HTMLTextAreaElement) {
@@ -492,8 +511,12 @@ export default function Home() {
       {/* â”€â”€ LEFT SIDEBAR: Settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <aside className={`sidebar panel-scroll ${sidebarOpen ? "is-open" : ""}`}>
         <div className="sidebar-header">
-          <h1 className="text-lg font-semibold leading-tight text-[#3a1f1a]">UMKM Growth Copilot AI</h1>
-          <p className="mt-1 text-xs text-[color:var(--muted)]">AI tool untuk bantu UMKM bertumbuh lebih cepat.</p>
+          <h1 className="text-lg font-semibold leading-tight text-[#3a1f1a]">
+            UMKM Growth Copilot AI
+          </h1>
+          <p className="mt-1 text-xs text-[color:var(--muted)]">
+            AI tool untuk bantu UMKM bertumbuh lebih cepat.
+          </p>
         </div>
         <div className="sidebar-content space-y-3">
           <p className="category-title">Konfigurasi AI</p>
@@ -504,7 +527,9 @@ export default function Home() {
               className="mt-1"
               value={settings.persona}
               options={personaOptions.map((p) => ({ value: p, label: p }))}
-              onChange={(persona) => setSettings((prev) => ({ ...prev, persona }))}
+              onChange={(persona) =>
+                setSettings((prev) => ({ ...prev, persona }))
+              }
             />
           </label>
 
@@ -524,7 +549,9 @@ export default function Home() {
               className="mt-1"
               value={settings.businessScale}
               options={businessScaleOptions}
-              onChange={(businessScale) => setSettings((prev) => ({ ...prev, businessScale }))}
+              onChange={(businessScale) =>
+                setSettings((prev) => ({ ...prev, businessScale }))
+              }
             />
           </label>
 
@@ -533,7 +560,9 @@ export default function Home() {
             <input
               className="control-field mt-1"
               value={settings.sector}
-              onChange={(e) => setSettings((prev) => ({ ...prev, sector: e.target.value }))}
+              onChange={(e) =>
+                setSettings((prev) => ({ ...prev, sector: e.target.value }))
+              }
               placeholder="Contoh: Kuliner, Fashion, Jasa"
             />
           </label>
@@ -544,19 +573,31 @@ export default function Home() {
               className="mt-1"
               value={settings.responseLength}
               options={responseLengthOptions}
-              onChange={(responseLength) => setSettings((prev) => ({ ...prev, responseLength }))}
+              onChange={(responseLength) =>
+                setSettings((prev) => ({ ...prev, responseLength }))
+              }
             />
           </label>
 
           <label className="block text-xs font-semibold text-[#5c342d]">
             Bahasa Output
             <div className="mt-1 grid grid-cols-2 gap-2">
-              <button type="button" className={`ui-btn ${settings.language === "id" ? "ui-btn-active" : "ui-btn-soft"}`}
-                onClick={() => setSettings((prev) => ({ ...prev, language: "id" }))}>
+              <button
+                type="button"
+                className={`ui-btn ${settings.language === "id" ? "ui-btn-active" : "ui-btn-soft"}`}
+                onClick={() =>
+                  setSettings((prev) => ({ ...prev, language: "id" }))
+                }
+              >
                 Indonesia
               </button>
-              <button type="button" className={`ui-btn ${settings.language === "en" ? "ui-btn-active" : "ui-btn-soft"}`}
-                onClick={() => setSettings((prev) => ({ ...prev, language: "en" }))}>
+              <button
+                type="button"
+                className={`ui-btn ${settings.language === "en" ? "ui-btn-active" : "ui-btn-soft"}`}
+                onClick={() =>
+                  setSettings((prev) => ({ ...prev, language: "en" }))
+                }
+              >
                 English
               </button>
             </div>
@@ -564,14 +605,25 @@ export default function Home() {
 
           <label className="block text-xs font-semibold text-[#5c342d]">
             Kreativitas ({settings.temperature.toFixed(1)})
-            <input type="range" min={0} max={1} step={0.1} value={settings.temperature}
-              onChange={(e) => setSettings((prev) => ({ ...prev, temperature: Number(e.target.value) }))}
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.1}
+              value={settings.temperature}
+              onChange={(e) =>
+                setSettings((prev) => ({
+                  ...prev,
+                  temperature: Number(e.target.value),
+                }))
+              }
               className="mt-2 w-full accent-[#c46746]"
             />
           </label>
 
           <div className="mt-4 rounded-xl border border-[#e0b8aa] bg-[#fff6ef] p-3 text-xs leading-relaxed text-[#6e3d35]">
-            Aplikasi ini adalah fondasi AI Tool UMKM yang dapat dimonetisasi melalui langganan, white-label, dan konsultasi premium.
+            Aplikasi ini adalah fondasi AI Tool UMKM yang dapat dimonetisasi
+            melalui langganan, white-label, dan konsultasi premium.
           </div>
         </div>
       </aside>
@@ -590,35 +642,66 @@ export default function Home() {
               â˜°
             </button>
             <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-[#9d5b49]">Live AI Session</p>
+              <p className="text-xs uppercase tracking-[0.18em] text-[#9d5b49]">
+                Live AI Session
+              </p>
               <h2 className="text-base font-semibold text-[#2c1714] leading-tight">
-                {mode === "gambar" ? "Generator Visual Produk UMKM" : "Konsultasi Bisnis Berbasis Groq"}
+                {mode === "gambar"
+                  ? "Generator Visual Produk UMKM"
+                  : "Konsultasi Bisnis Berbasis Groq"}
               </h2>
             </div>
           </div>
           <div className="chat-header-right">
             <div className="mode-switcher">
-              <button type="button" className={mode === "chat" ? "is-active" : ""} title="Mode Chat Berbasis Teks"
-                onClick={() => setMode("chat")}>Chat</button>
-              <button type="button" className={mode === "gambar" ? "is-active" : ""} title="Mode Generator Visual"
-                onClick={() => setMode("gambar")}>Gambar</button>
+              <button
+                type="button"
+                className={mode === "chat" ? "is-active" : ""}
+                title="Mode Chat Berbasis Teks"
+                onClick={() => setMode("chat")}
+              >
+                Chat
+              </button>
+              <button
+                type="button"
+                className={mode === "gambar" ? "is-active" : ""}
+                title="Mode Generator Visual"
+                onClick={() => setMode("gambar")}
+              >
+                Gambar
+              </button>
             </div>
-            <button type="button" onClick={copyLatestAnswer} title="Salin jawaban AI yang terakhir"
-              className={`ui-btn ui-btn-soft ${copied ? "ui-btn-active" : ""}`}>
+            <button
+              type="button"
+              onClick={copyLatestAnswer}
+              title="Salin jawaban AI yang terakhir"
+              className={`ui-btn ui-btn-soft ${copied ? "ui-btn-active" : ""}`}
+            >
               {copied ? "✓ Tersalin" : "Copy"}
             </button>
-            <button type="button" onClick={exportConversation} title="Unduh log percakapan dalam format Markdown"
-              className={`ui-btn ui-btn-soft ${exported ? "ui-btn-active" : ""}`}>
+            <button
+              type="button"
+              onClick={exportConversation}
+              title="Unduh log percakapan dalam format Markdown"
+              className={`ui-btn ui-btn-soft ${exported ? "ui-btn-active" : ""}`}
+            >
               {exported ? "✓" : "Export MD"}
             </button>
-            <button type="button" onClick={clearConversation} title="Bersihkan riwayat obrolan" className="ui-btn ui-btn-soft">
+            <button
+              type="button"
+              onClick={clearConversation}
+              title="Bersihkan riwayat obrolan"
+              className="ui-btn ui-btn-soft"
+            >
               Reset
             </button>
             <button
               type="button"
               className="ui-btn ui-btn-primary ui-btn-lg shadow-sm hover:shadow-md transition-shadow"
               title="Buka panel template dan alat analitik (24 Fitur)"
-              onClick={() => { setDrawerOpen(true); }}
+              onClick={() => {
+                setDrawerOpen(true);
+              }}
             >
               Fitur &amp; Tools <span className="feature-badge ml-1">24</span>
             </button>
@@ -627,9 +710,15 @@ export default function Home() {
 
         {/* Stats Bar */}
         <div className="stats-bar mono">
-          <span className="ui-chip bg-[#f4d8cb] text-[#68342c]">pesan: {stats.totalMessages}</span>
-          <span className="ui-chip bg-[#f6e6c2] text-[#684a25]">balasan: {stats.assistantReplies}</span>
-          <span className="ui-chip bg-[#eadfef] text-[#4d3564]">~token: {stats.estimatedTokens}</span>
+          <span className="ui-chip bg-[#f4d8cb] text-[#68342c]">
+            pesan: {stats.totalMessages}
+          </span>
+          <span className="ui-chip bg-[#f6e6c2] text-[#684a25]">
+            balasan: {stats.assistantReplies}
+          </span>
+          <span className="ui-chip bg-[#eadfef] text-[#4d3564]">
+            ~token: {stats.estimatedTokens}
+          </span>
         </div>
 
         {/* Chat Messages */}
@@ -637,16 +726,31 @@ export default function Home() {
           <div className="space-y-3 max-w-3xl mx-auto">
             {messages.map((message, index) => {
               const messageIsImage = isImageDataUrl(message.content);
-              
+
               if (message.id === "welcome-message") {
                 return (
-                  <div key={message.id} className="flex flex-col items-center justify-center py-12 md:py-20 text-center reveal" style={{ animationDelay: `${Math.min(index * 40, 240)}ms` }}>
+                  <div
+                    key={message.id}
+                    className="flex flex-col items-center justify-center py-12 md:py-20 text-center reveal"
+                    style={{ animationDelay: `${Math.min(index * 40, 240)}ms` }}
+                  >
                     <div className="w-20 h-20 bg-gradient-to-tr from-[#be5d3d] to-[#e4a896] rounded-[2rem] rotate-3 flex items-center justify-center mb-6 shadow-xl shadow-[#be5d3d]/20 transition-transform hover:rotate-12 hover:scale-105 duration-300">
-                      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <svg
+                        width="36"
+                        height="36"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="white"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
                         <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
                       </svg>
                     </div>
-                    <h3 className="text-xl md:text-2xl font-bold text-[#3a1f1a] mb-3">Sistem AI Siap Digunakan</h3>
+                    <h3 className="text-xl md:text-2xl font-bold text-[#3a1f1a] mb-3">
+                      Sistem AI Siap Digunakan
+                    </h3>
                     <p className="text-[#6a5250] max-w-md mx-auto text-sm md:text-base leading-relaxed">
                       {message.content}
                     </p>
@@ -669,16 +773,30 @@ export default function Home() {
                   </p>
                   {messageIsImage ? (
                     <button
-                      onClick={() => setZoomedImage({ url: message.content, id: message.id })}
+                      onClick={() =>
+                        setZoomedImage({ url: message.content, id: message.id })
+                      }
                       className="relative block mt-2 w-full max-w-sm group overflow-hidden rounded-lg shadow-md border border-[#e4c9c1] cursor-pointer"
                       title="Klik untuk memperbesar gambar"
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={message.content} alt="AI Generated"
-                        className="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-105" />
+                      <img
+                        src={message.content}
+                        alt="AI Generated"
+                        className="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
                       <div className="absolute inset-0 bg-[#2f1a17]/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-[2px]">
                         <div className="bg-white/95 text-[#be5d3d] rounded-full p-3 transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 shadow-xl flex items-center gap-2">
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <svg
+                            width="20"
+                            height="20"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
                             <circle cx="11" cy="11" r="8"></circle>
                             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                             <line x1="11" y1="8" x2="11" y2="14"></line>
@@ -693,26 +811,101 @@ export default function Home() {
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
                         components={{
-                          p: ({ node, ...props }) => <p className="mb-2 leading-relaxed whitespace-pre-wrap last:mb-0" {...props} />,
-                          strong: ({ node, ...props }) => <strong className="font-bold text-[#4a2b28]" {...props} />,
-                          ul: ({ node, ...props }) => <ul className="list-disc pl-5 mb-3 space-y-1" {...props} />,
-                          ol: ({ node, ...props }) => <ol className="list-decimal pl-5 mb-3 space-y-1" {...props} />,
-                          li: ({ node, ...props }) => <li className="" {...props} />,
+                          p: ({ node, ...props }) => (
+                            <p
+                              className="mb-2 leading-relaxed whitespace-pre-wrap last:mb-0"
+                              {...props}
+                            />
+                          ),
+                          strong: ({ node, ...props }) => (
+                            <strong
+                              className="font-bold text-[#4a2b28]"
+                              {...props}
+                            />
+                          ),
+                          ul: ({ node, ...props }) => (
+                            <ul
+                              className="list-disc pl-5 mb-3 space-y-1"
+                              {...props}
+                            />
+                          ),
+                          ol: ({ node, ...props }) => (
+                            <ol
+                              className="list-decimal pl-5 mb-3 space-y-1"
+                              {...props}
+                            />
+                          ),
+                          li: ({ node, ...props }) => (
+                            <li className="" {...props} />
+                          ),
                           table: ({ node, ...props }) => (
                             <div className="overflow-x-auto my-3 border border-[#dcb0a2] rounded-xl shadow-sm">
-                              <table className="min-w-full divide-y divide-[#dcb0a2] text-sm text-left" {...props} />
+                              <table
+                                className="min-w-full divide-y divide-[#dcb0a2] text-sm text-left"
+                                {...props}
+                              />
                             </div>
                           ),
-                          thead: ({ node, ...props }) => <thead className="bg-[#f4dcd4] text-[#4a2b28]" {...props} />,
-                          tbody: ({ node, ...props }) => <tbody className="divide-y divide-[#e4c9c1] bg-white/40" {...props} />,
-                          tr: ({ node, ...props }) => <tr className="hover:bg-[#fff9f3]/60 transition-colors" {...props} />,
-                          th: ({ node, ...props }) => <th className="px-3 py-2.5 font-semibold whitespace-nowrap" {...props} />,
-                          td: ({ node, ...props }) => <td className="px-3 py-2 text-[#3a1f1a]" {...props} />,
-                          h1: ({ node, ...props }) => <h1 className="text-xl font-bold mt-4 mb-2 text-[#3a1f1a]" {...props} />,
-                          h2: ({ node, ...props }) => <h2 className="text-lg font-bold mt-3 mb-2 text-[#3a1f1a]" {...props} />,
-                          h3: ({ node, ...props }) => <h3 className="text-base font-bold mt-2 mb-1 text-[#3a1f1a]" {...props} />,
-                          code: ({ node, ...props }) => <code className="bg-[#ffe8db] text-[#be5d3d] px-1.5 py-0.5 rounded text-xs" {...props} />,
-                          pre: ({ node, ...props }) => <pre className="bg-[#2e1815] text-[#fff0e4] p-3 rounded-xl overflow-x-auto my-3 text-xs" {...props} />,
+                          thead: ({ node, ...props }) => (
+                            <thead
+                              className="bg-[#f4dcd4] text-[#4a2b28]"
+                              {...props}
+                            />
+                          ),
+                          tbody: ({ node, ...props }) => (
+                            <tbody
+                              className="divide-y divide-[#e4c9c1] bg-white/40"
+                              {...props}
+                            />
+                          ),
+                          tr: ({ node, ...props }) => (
+                            <tr
+                              className="hover:bg-[#fff9f3]/60 transition-colors"
+                              {...props}
+                            />
+                          ),
+                          th: ({ node, ...props }) => (
+                            <th
+                              className="px-3 py-2.5 font-semibold whitespace-nowrap"
+                              {...props}
+                            />
+                          ),
+                          td: ({ node, ...props }) => (
+                            <td
+                              className="px-3 py-2 text-[#3a1f1a]"
+                              {...props}
+                            />
+                          ),
+                          h1: ({ node, ...props }) => (
+                            <h1
+                              className="text-xl font-bold mt-4 mb-2 text-[#3a1f1a]"
+                              {...props}
+                            />
+                          ),
+                          h2: ({ node, ...props }) => (
+                            <h2
+                              className="text-lg font-bold mt-3 mb-2 text-[#3a1f1a]"
+                              {...props}
+                            />
+                          ),
+                          h3: ({ node, ...props }) => (
+                            <h3
+                              className="text-base font-bold mt-2 mb-1 text-[#3a1f1a]"
+                              {...props}
+                            />
+                          ),
+                          code: ({ node, ...props }) => (
+                            <code
+                              className="bg-[#ffe8db] text-[#be5d3d] px-1.5 py-0.5 rounded text-xs"
+                              {...props}
+                            />
+                          ),
+                          pre: ({ node, ...props }) => (
+                            <pre
+                              className="bg-[#2e1815] text-[#fff0e4] p-3 rounded-xl overflow-x-auto my-3 text-xs"
+                              {...props}
+                            />
+                          ),
                         }}
                       >
                         {message.content}
@@ -725,7 +918,9 @@ export default function Home() {
             {isLoading && (
               <div className="inline-flex items-center gap-2 rounded-full bg-[#fff0df] px-4 py-2 text-sm text-[#7f4a3f] shadow-sm">
                 <span className="h-2 w-2 animate-pulse rounded-full bg-[#cf704f]" />
-                {mode === "gambar" ? "AI sedang membuat visual promosi..." : "AI sedang menyusun rekomendasi..."}
+                {mode === "gambar"
+                  ? "AI sedang membuat visual promosi..."
+                  : "AI sedang menyusun rekomendasi..."}
               </div>
             )}
           </div>
@@ -739,7 +934,10 @@ export default function Home() {
                 ref={textareaRef}
                 value={draft}
                 rows={1}
-                onChange={(e) => { setDraft(e.target.value); autoResize(e.target); }}
+                onChange={(e) => {
+                  setDraft(e.target.value);
+                  autoResize(e.target);
+                }}
                 onKeyDown={handleHotkey}
                 placeholder={
                   mode === "gambar"
@@ -748,11 +946,25 @@ export default function Home() {
                 }
                 className="chat-input-textarea"
               />
-              <button type="submit" disabled={!draft.trim() || isLoading} className="chat-send-btn" aria-label="Kirim">
+              <button
+                type="submit"
+                disabled={!draft.trim() || isLoading}
+                className="chat-send-btn"
+                aria-label="Kirim"
+              >
                 {isLoading ? (
                   <span className="h-3 w-3 rounded-full border-2 border-white/40 border-t-white animate-spin inline-block" />
                 ) : (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
                     <line x1="22" y1="2" x2="11" y2="13" />
                     <polygon points="22 2 15 22 11 13 2 9 22 2" />
                   </svg>
@@ -760,7 +972,10 @@ export default function Home() {
               </button>
             </div>
             <div className="chat-input-meta">
-              <span>{draft.length} karakter · Ctrl+Enter untuk kirim</span>
+              <span>
+                {draft.length} karakter · Enter untuk kirim, Ctrl+Enter untuk
+                baris baru
+              </span>
               {error && <span className="text-[#8f2f16]">{error}</span>}
             </div>
           </form>
@@ -768,21 +983,39 @@ export default function Home() {
       </div>
 
       {/* ——— DRAWER: Templates & Advanced Tools ——————— */}
-      <div className={`drawer-overlay ${drawerOpen ? "is-open" : ""}`} onClick={() => setDrawerOpen(false)} />
+      <div
+        className={`drawer-overlay ${drawerOpen ? "is-open" : ""}`}
+        onClick={() => setDrawerOpen(false)}
+      />
       <div className={`drawer-panel ${drawerOpen ? "is-open" : ""}`}>
         <div className="drawer-header">
-          <h3 className="text-base font-semibold text-[#2f1a17]">Fitur &amp; Tools</h3>
-          <button type="button" className="drawer-close" onClick={() => setDrawerOpen(false)} aria-label="Tutup">✕</button>
+          <h3 className="text-base font-semibold text-[#2f1a17]">
+            Fitur &amp; Tools
+          </h3>
+          <button
+            type="button"
+            className="drawer-close"
+            onClick={() => setDrawerOpen(false)}
+            aria-label="Tutup"
+          >
+            ✕
+          </button>
         </div>
 
         {/* Tab Navigation */}
         <div className="tab-nav">
-          <button type="button" className={`tab-btn ${drawerTab === "templates" ? "is-active" : ""}`}
-            onClick={() => setDrawerTab("templates")}>
+          <button
+            type="button"
+            className={`tab-btn ${drawerTab === "templates" ? "is-active" : ""}`}
+            onClick={() => setDrawerTab("templates")}
+          >
             Template Prompt
           </button>
-          <button type="button" className={`tab-btn ${drawerTab === "tools" ? "is-active" : ""}`}
-            onClick={() => setDrawerTab("tools")}>
+          <button
+            type="button"
+            className={`tab-btn ${drawerTab === "tools" ? "is-active" : ""}`}
+            onClick={() => setDrawerTab("tools")}
+          >
             Alat Analitik
           </button>
         </div>
@@ -791,24 +1024,43 @@ export default function Home() {
           {drawerTab === "templates" && (
             <div>
               <p className="category-title">Template Prompt Cepat</p>
-              <p className="text-xs text-[#6f4f4a] mb-3">Klik template untuk menyisipkan ke kolom chat.</p>
+              <p className="text-xs text-[#6f4f4a] mb-3">
+                Klik template untuk menyisipkan ke kolom chat.
+              </p>
               <div className="grid grid-cols-1 gap-3">
                 {promptTemplates.map((template, index) => (
                   <button
                     key={template}
                     type="button"
-                    onClick={() => { addTemplate(template); setDrawerOpen(false); }}
+                    onClick={() => {
+                      addTemplate(template);
+                      setDrawerOpen(false);
+                    }}
                     className={`template-chip w-full text-left text-sm text-[#412624] p-3.5 flex items-start gap-3.5 group ${
                       highlightTemplate === template ? "is-active" : ""
                     }`}
-                    style={{ animationDelay: `${index * 50}ms`, animationFillMode: "both" }}
+                    style={{
+                      animationDelay: `${index * 50}ms`,
+                      animationFillMode: "both",
+                    }}
                   >
                     <div className="flex-shrink-0 mt-0.5 w-7 h-7 rounded-full bg-gradient-to-br from-[#f8d4c7] to-[#e4a896] flex items-center justify-center text-[#9a4224] group-hover:scale-110 transition-transform shadow-inner">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
                         <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
                       </svg>
                     </div>
-                    <span className="leading-relaxed font-medium">{template}</span>
+                    <span className="leading-relaxed font-medium">
+                      {template}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -832,7 +1084,8 @@ export default function Home() {
                     "Team Collaboration Workspace",
                   ].map((f) => (
                     <li key={f} className="flex items-start gap-1.5">
-                      <span className="text-[#be5d3d] font-bold mr-0.5">-</span><span>{f}</span>
+                      <span className="text-[#be5d3d] font-bold mr-0.5">-</span>
+                      <span>{f}</span>
                     </li>
                   ))}
                 </ul>
@@ -843,17 +1096,20 @@ export default function Home() {
           {drawerTab === "tools" && (
             <AdvancedTools
               settings={settings}
-              onInjectPrompt={(text) => { injectPromptFromTools(text); setDrawerOpen(false); }}
+              onInjectPrompt={(text) => {
+                injectPromptFromTools(text);
+                setDrawerOpen(false);
+              }}
             />
           )}
         </div>
       </div>
       {zoomedImage && (
-        <div 
+        <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-[#1a1110]/80 backdrop-blur-sm p-4 transition-opacity duration-300"
           onClick={() => setZoomedImage(null)}
         >
-          <div 
+          <div
             className="relative max-w-4xl w-full flex flex-col items-center transform transition-transform duration-300 scale-100"
             onClick={(e) => e.stopPropagation()}
           >
@@ -862,22 +1118,40 @@ export default function Home() {
               className="absolute -top-12 right-0 text-white hover:text-[#f4dcd4] bg-[#3a1f1a]/50 hover:bg-[#3a1f1a] rounded-full p-2 transition-colors shadow-sm"
               title="Tutup (Esc)"
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <line x1="18" y1="6" x2="6" y2="18"></line>
                 <line x1="6" y1="6" x2="18" y2="18"></line>
               </svg>
             </button>
-            <img 
-              src={zoomedImage.url} 
-              alt="Zoomed AI Generated" 
-              className="w-full h-auto max-h-[75vh] object-contain rounded-lg shadow-2xl" 
+            <img
+              src={zoomedImage.url}
+              alt="Zoomed AI Generated"
+              className="w-full h-auto max-h-[75vh] object-contain rounded-lg shadow-2xl"
             />
             <a
               href={zoomedImage.url}
               download={`umkm-promosi-${zoomedImage.id}.png`}
               className="mt-6 flex items-center gap-2 bg-gradient-to-r from-[#be5d3d] to-[#d57852] hover:from-[#a74f33] hover:to-[#c66b49] text-white px-6 py-3 rounded-full font-semibold shadow-lg transition-all transform hover:scale-105"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                 <polyline points="7 10 12 15 17 10"></polyline>
                 <line x1="12" y1="15" x2="12" y2="3"></line>
