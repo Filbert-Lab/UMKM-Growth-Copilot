@@ -590,16 +590,19 @@ export default function Home() {
               â˜°
             </button>
             <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-[#9d5b49] mb-1">Live AI Session</p>
-              <AnimatedSelect
-                value={mode}
-                options={modeOptions}
-                onChange={setMode}
-                className="min-w-[200px] shadow-sm font-semibold text-[#2c1714]"
-              />
+              <p className="text-xs uppercase tracking-[0.18em] text-[#9d5b49]">Live AI Session</p>
+              <h2 className="text-base font-semibold text-[#2c1714] leading-tight">
+                {mode === "gambar" ? "Generator Visual Produk UMKM" : "Konsultasi Bisnis Berbasis Groq"}
+              </h2>
             </div>
           </div>
           <div className="chat-header-right">
+            <div className="mode-switcher">
+              <button type="button" className={mode === "chat" ? "is-active" : ""} title="Mode Chat Berbasis Teks"
+                onClick={() => setMode("chat")}>Chat</button>
+              <button type="button" className={mode === "gambar" ? "is-active" : ""} title="Mode Generator Visual"
+                onClick={() => setMode("gambar")}>Gambar</button>
+            </div>
             <button type="button" onClick={copyLatestAnswer} title="Salin jawaban AI yang terakhir"
               className={`ui-btn ui-btn-soft ${copied ? "ui-btn-active" : ""}`}>
               {copied ? "✓ Tersalin" : "Copy"}
@@ -757,7 +760,7 @@ export default function Home() {
               </button>
             </div>
             <div className="chat-input-meta">
-              <span>{draft.length} karakter · Ctrl+Enter untuk kirim, Enter untuk baris baru</span>
+              <span>{draft.length} karakter · Ctrl+Enter untuk kirim</span>
               {error && <span className="text-[#8f2f16]">{error}</span>}
             </div>
           </form>
