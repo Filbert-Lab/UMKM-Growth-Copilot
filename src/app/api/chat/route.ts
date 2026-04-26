@@ -72,19 +72,25 @@ function clamp(value: number, min: number, max: number) {
 function maxOutputTokens(length: ChatSettings["responseLength"]) {
   switch (length) {
     case "short":
-      return 450;
+      // Dinaikkan agar model bisa menyelesaikan kalimat terakhir;
+      // singkatnya dikontrol via prompt, bukan hard-cut token.
+      return 600;
     case "long":
-      return 1400;
+      return 1600;
     case "medium":
     default:
-      return 900;
+      return 950;
   }
 }
 
 function responseLengthGuidance(length: ChatSettings["responseLength"]) {
   switch (length) {
     case "short":
-      return "Targetkan jawaban 80-140 kata dengan poin yang tetap konkret.";
+      return (
+        "WAJIB singkat: jawab maksimal 100-130 kata. " +
+        "Langsung ke inti, tanpa basa-basi, tanpa daftar panjang. " +
+        "Berhenti setelah poin utama selesai, jangan tambahkan penjelasan tambahan."
+      );
     case "long":
       return "Targetkan jawaban 380-600 kata dengan penjabaran taktis per langkah.";
     case "medium":
