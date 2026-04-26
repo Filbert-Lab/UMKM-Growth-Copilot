@@ -268,6 +268,12 @@ export default function Home() {
   }, [settings]);
 
   useEffect(() => {
+    if (textareaRef.current) {
+      autoResize(textareaRef.current);
+    }
+  }, [draft]);
+
+  useEffect(() => {
     const container = chatScrollRef.current;
     if (!container) {
       return;
@@ -404,7 +410,10 @@ export default function Home() {
     }, 650);
 
     window.requestAnimationFrame(() => {
-      textareaRef.current?.focus();
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        autoResize(textareaRef.current);
+      }
     });
   }
 
@@ -418,7 +427,10 @@ export default function Home() {
     });
 
     window.requestAnimationFrame(() => {
-      textareaRef.current?.focus();
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        autoResize(textareaRef.current);
+      }
     });
   }
 
