@@ -639,10 +639,10 @@ export default function Home() {
               return (
                 <article
                   key={message.id}
-                  className={`reveal message-card rounded-2xl p-3 ${
+                  className={`reveal message-card rounded-2xl p-4 shadow-sm backdrop-blur-md transition-all duration-300 hover:shadow-md ${
                     message.role === "assistant"
-                      ? "mr-8 border border-[#dcb0a2] bg-[#fff9f3]"
-                      : "ml-8 border border-[#c7a190] bg-[#ffe7d7]"
+                      ? "mr-8 border border-[#dcb0a2]/50 bg-gradient-to-br from-[#fff9f3]/95 to-[#fdf2ea]/95"
+                      : "ml-8 border border-[#c7a190]/60 bg-gradient-to-bl from-[#ffe7d7]/95 to-[#ffdacc]/95"
                   }`}
                   style={{ animationDelay: `${Math.min(index * 40, 240)}ms` }}
                 >
