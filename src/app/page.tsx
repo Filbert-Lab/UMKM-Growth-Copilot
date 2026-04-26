@@ -8,6 +8,8 @@ import {
   useRef,
   useState,
 } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { AdvancedTools } from "./advanced-tools";
 
 type ChatRole = "user" | "assistant";
@@ -651,9 +653,35 @@ export default function Home() {
                       </div>
                     </a>
                   ) : (
-                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#2e1815]">
-                      {message.content}
-                    </p>
+                    <div className="text-sm text-[#2e1815]">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          p: ({ node, ...props }) => <p className="mb-2 leading-relaxed whitespace-pre-wrap last:mb-0" {...props} />,
+                          strong: ({ node, ...props }) => <strong className="font-bold text-[#4a2b28]" {...props} />,
+                          ul: ({ node, ...props }) => <ul className="list-disc pl-5 mb-3 space-y-1" {...props} />,
+                          ol: ({ node, ...props }) => <ol className="list-decimal pl-5 mb-3 space-y-1" {...props} />,
+                          li: ({ node, ...props }) => <li className="" {...props} />,
+                          table: ({ node, ...props }) => (
+                            <div className="overflow-x-auto my-3 border border-[#dcb0a2] rounded-xl shadow-sm">
+                              <table className="min-w-full divide-y divide-[#dcb0a2] text-sm text-left" {...props} />
+                            </div>
+                          ),
+                          thead: ({ node, ...props }) => <thead className="bg-[#f4dcd4] text-[#4a2b28]" {...props} />,
+                          tbody: ({ node, ...props }) => <tbody className="divide-y divide-[#e4c9c1] bg-white/40" {...props} />,
+                          tr: ({ node, ...props }) => <tr className="hover:bg-[#fff9f3]/60 transition-colors" {...props} />,
+                          th: ({ node, ...props }) => <th className="px-3 py-2.5 font-semibold whitespace-nowrap" {...props} />,
+                          td: ({ node, ...props }) => <td className="px-3 py-2 text-[#3a1f1a]" {...props} />,
+                          h1: ({ node, ...props }) => <h1 className="text-xl font-bold mt-4 mb-2 text-[#3a1f1a]" {...props} />,
+                          h2: ({ node, ...props }) => <h2 className="text-lg font-bold mt-3 mb-2 text-[#3a1f1a]" {...props} />,
+                          h3: ({ node, ...props }) => <h3 className="text-base font-bold mt-2 mb-1 text-[#3a1f1a]" {...props} />,
+                          code: ({ node, ...props }) => <code className="bg-[#ffe8db] text-[#be5d3d] px-1.5 py-0.5 rounded text-xs" {...props} />,
+                          pre: ({ node, ...props }) => <pre className="bg-[#2e1815] text-[#fff0e4] p-3 rounded-xl overflow-x-auto my-3 text-xs" {...props} />,
+                        }}
+                      >
+                        {message.content}
+                      </ReactMarkdown>
+                    </div>
                   )}
                 </article>
               );

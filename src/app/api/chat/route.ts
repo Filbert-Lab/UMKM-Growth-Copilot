@@ -306,15 +306,7 @@ function asksForAnalyticalSections(message: string) {
 }
 
 function normalizeReplyStyle(reply: string) {
-  return reply
-    .replace(/\*\*/g, "")
-    .replace(/`([^`]+)`/g, "$1")
-    .replace(/^[ \t]*#{1,6}\s*/gm, "")
-    .replace(/^\s*\*\s+/gm, "- ")
-    .replace(/\r\n/g, "\n")
-    .replace(/[ \t]+\n/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  return reply.trim();
 }
 
 function normalizeHeadingCandidate(line: string) {
@@ -604,7 +596,7 @@ Sektor bisnis pengguna: ${sector}.
 Aturan jawaban:
 1. Jawaban harus konkret, bisa dieksekusi, dan berdampak pada peningkatan omzet atau efisiensi.
 2. Jangan ulangi salam/perkenalan jika percakapan sudah berjalan.
-3. Gunakan teks polos, jangan gunakan markdown seperti **, *, #, atau tabel markdown.
+3. Gunakan markdown untuk memformat jawaban secara profesional (misal: tabel jika relevan, *bold* untuk poin penting).
 4. ${responseModeInstruction}
 5. ${optionalSectionInstruction}
 6. Jika pengguna meminta strategi dengan periode waktu (contoh: 14 hari), berikan rencana terjadwal sesuai periode tersebut.
