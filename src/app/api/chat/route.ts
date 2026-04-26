@@ -408,7 +408,36 @@ function getDetailedNumberedSteps(reply: string) {
     .slice(0, 8);
 }
 
-function buildComplaintSopReply(topic: string) {
+function buildComplaintSopReply(topic: string, language: "id" | "en") {
+  if (language === "en") {
+    return [
+      `Here is a practical SOP for ${topic}.`,
+      "",
+      "SOP Steps (detailed actions + PIC + SLA):",
+      "1. Receive the complaint with empathy, validate the issue, and collect core data (name, order number, proof photo). PIC: Customer Service. SLA: initial response within 5 minutes.",
+      "2. Classify the issue type (product, delivery, service, payment) and urgency level. PIC: Customer Service. SLA: within 10 minutes.",
+      "3. Verify the root cause with relevant teams (warehouse/cashier/courier) based on transaction data. PIC: Operations Admin. SLA: within 30 minutes.",
+      "4. Offer a clear solution (refund, replacement, resend, voucher) with a clear completion deadline. PIC: Customer Service + Supervisor. SLA: within 15 minutes after verification.",
+      "5. Execute the solution and confirm to the customer until they acknowledge resolution. PIC: Operations Team. SLA: as committed, typically < 24 hours.",
+      "6. Close the case by documenting root cause, compensation cost, and preventive action to avoid recurrence. PIC: Supervisor. SLA: report completed on the same day.",
+      "",
+      "Quick customer reply template:",
+      "Hi Kak, thank you for contacting us. We are sorry for the issue. Could you share your order number and product photo so we can process this right away? We will send the first update within 15 minutes.",
+      "",
+      "Complaint log template:",
+      "- Date/Time received:",
+      "- Customer name:",
+      "- Order number:",
+      "- Complaint channel (WA/IG/Marketplace):",
+      "- Issue type:",
+      "- Root cause:",
+      "- Selected solution:",
+      "- PIC:",
+      "- SLA commitment:",
+      "- Final status (resolved/pending):",
+    ].join("\n");
+  }
+
   return [
     `Berikut SOP praktis untuk ${topic}.`,
     "",
@@ -437,7 +466,30 @@ function buildComplaintSopReply(topic: string) {
   ].join("\n");
 }
 
-function buildGenericSopReply(topic: string) {
+function buildGenericSopReply(topic: string, language: "id" | "en") {
+  if (language === "en") {
+    return [
+      `Here is a simple SOP for ${topic}.`,
+      "",
+      "SOP Steps (detailed actions + PIC + SLA):",
+      "1. Define SOP goals and measurable success indicators. PIC: Owner/Manager. SLA: 1 day.",
+      "2. Map the full workflow and identify error-prone points. PIC: Operations Supervisor. SLA: 1 day.",
+      "3. Define detailed step-by-step actions per role, including each step's input/output. PIC: Supervisor + Related Teams. SLA: 1 day.",
+      "4. Set service time standards (SLA), quality standards, and escalation rules for issues. PIC: Operations Manager. SLA: 1 day.",
+      "5. Pilot the SOP for 3-7 days, collect feedback, then revise ineffective parts. PIC: QA/Internal Control. SLA: 7 days.",
+      "6. Finalize SOP, train the team, and run a periodic review at least monthly. PIC: Owner/Manager. SLA: ongoing.",
+      "",
+      "SOP document template:",
+      "- SOP objective:",
+      "- Scope:",
+      "- PIC per step:",
+      "- SLA per step:",
+      "- Forms/checklists used:",
+      "- Escalation mechanism:",
+      "- Evaluation schedule:",
+    ].join("\n");
+  }
+
   return [
     `Berikut SOP sederhana untuk ${topic}.`,
     "",
@@ -460,7 +512,11 @@ function buildGenericSopReply(topic: string) {
   ].join("\n");
 }
 
-function buildSopFocusedReply(reply: string, userMessage: string) {
+function buildSopFocusedReply(
+  reply: string,
+  userMessage: string,
+  language: "id" | "en",
+) {
   const topic = inferSopTopic(userMessage);
   const detailedSteps = getDetailedNumberedSteps(reply);
   const hasEnoughSteps = detailedSteps.length >= 5;
@@ -471,8 +527,8 @@ function buildSopFocusedReply(reply: string, userMessage: string) {
   }
 
   return isComplaintSopRequest(userMessage)
-    ? buildComplaintSopReply(topic)
-    : buildGenericSopReply(topic);
+    ? buildComplaintSopReply(topic, language)
+    : buildGenericSopReply(topic, language);
 }
 
 function toGroqMessages(
@@ -586,6 +642,11 @@ export async function POST(request: Request) {
       ? "Karena pengguna menyinggung analisis/KPI/risiko, kamu boleh menambah bagian tersebut secara ringkas."
       : "Jangan tambahkan bagian Analisis, KPI, Risiko, Mitigasi, atau Estimasi Dampak jika pengguna tidak memintanya secara eksplisit.";
 
+    const languageInstruction =
+      language === "en"
+        ? "WAJIB gunakan English untuk seluruh jawaban. Jangan gunakan Bahasa Indonesia kecuali nama brand/istilah lokal."
+        : "WAJIB gunakan Bahasa Indonesia yang sederhana dan mudah dipahami pelaku UMKM.";
+
     const systemInstruction = `
 Kamu adalah ${persona} untuk pelaku UMKM Indonesia.
 Gaya jawaban: ${tone}.
@@ -595,13 +656,14 @@ Sektor bisnis pengguna: ${sector}.
 
 Aturan jawaban:
 1. Jawaban harus konkret, bisa dieksekusi, dan berdampak pada peningkatan omzet atau efisiensi.
-2. Jangan ulangi salam/perkenalan jika percakapan sudah berjalan.
-3. Gunakan markdown untuk memformat jawaban secara profesional (misal: tabel jika relevan, *bold* untuk poin penting).
-4. ${responseModeInstruction}
-5. ${optionalSectionInstruction}
-6. Jika pengguna meminta strategi dengan periode waktu (contoh: 14 hari), berikan rencana terjadwal sesuai periode tersebut.
-7. Hindari jawaban terlalu umum dan hindari pengantar panjang yang tidak diminta.
-8. ${responseLengthGuidance(responseLength)}
+2. ${languageInstruction}
+3. Jangan ulangi salam/perkenalan jika percakapan sudah berjalan.
+4. Gunakan markdown untuk memformat jawaban secara profesional (misal: tabel jika relevan, *bold* untuk poin penting).
+5. ${responseModeInstruction}
+6. ${optionalSectionInstruction}
+7. Jika pengguna meminta strategi dengan periode waktu (contoh: 14 hari), berikan rencana terjadwal sesuai periode tersebut.
+8. Hindari jawaban terlalu umum dan hindari pengantar panjang yang tidak diminta.
+9. ${responseLengthGuidance(responseLength)}
 `.trim();
 
     const groqMessages = toGroqMessages(
@@ -655,7 +717,7 @@ Aturan jawaban:
       : stripUnrequestedAnalyticalSections(cleanedReply);
     const finalReply =
       sopRequest && !analyticalSectionsRequested
-        ? buildSopFocusedReply(strippedReply, message)
+        ? buildSopFocusedReply(strippedReply, message, language)
         : strippedReply;
 
     return NextResponse.json({ reply: finalReply });
