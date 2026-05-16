@@ -11,9 +11,11 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { AdvancedTools } from "./advanced-tools";
+import { ImageAnalyzer } from "./image-analyzer";
 
 type ChatRole = "user" | "assistant";
 type ChatMode = "chat" | "gambar";
+type DrawerTab = "templates" | "tools" | "analisis";
 
 type ChatMessage = {
   id: string;
@@ -214,7 +216,7 @@ export default function Home() {
   );
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [drawerTab, setDrawerTab] = useState<"templates" | "tools">(
+  const [drawerTab, setDrawerTab] = useState<DrawerTab>(
     "templates",
   );
   const [zoomedImage, setZoomedImage] = useState<{
@@ -1393,6 +1395,13 @@ export default function Home() {
           >
             Alat Analitik
           </button>
+          <button
+            type="button"
+            className={`tab-btn ${drawerTab === "analisis" ? "is-active" : ""}`}
+            onClick={() => setDrawerTab("analisis")}
+          >
+            Analisis Gambar
+          </button>
         </div>
 
         <div className="drawer-body panel-scroll">
@@ -1476,6 +1485,16 @@ export default function Home() {
                 setDrawerOpen(false);
               }}
             />
+          )}
+
+          {drawerTab === "analisis" && (
+            <div>
+              <p className="category-title mb-3">Analisis Gambar dengan AI</p>
+              <p className="text-xs text-[#6f4f4a] mb-4">
+                Unggah foto produk atau nota struk. AI akan menganalisis dan mengekstrak informasi penting secara otomatis.
+              </p>
+              <ImageAnalyzer />
+            </div>
           )}
         </div>
       </div>
