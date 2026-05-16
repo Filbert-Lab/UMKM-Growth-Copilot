@@ -4,7 +4,8 @@
   
   [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org/)
   [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?logo=tailwind-css)](https://tailwindcss.com/)
-  [![Groq API](https://img.shields.io/badge/Groq_API-Llama_3.1-f55036?logo=groq)](https://groq.com/)
+  [![Groq API](https://img.shields.io/badge/Groq_API-Llama_4_Scout-f55036?logo=groq)](https://groq.com/)
+  [![Cloudinary](https://img.shields.io/badge/Cloudinary-Image_Upload-3448C5?logo=cloudinary)](https://cloudinary.com/)
   [![Hugging Face](https://img.shields.io/badge/Hugging_Face-FLUX.1-ffcc00?logo=huggingface)](https://huggingface.co/)
   [![Deployed on Vercel](https://img.shields.io/badge/Deployed_on-Vercel-black?logo=vercel)](https://umkm-growth-copilot.vercel.app/)
 </div>
@@ -18,7 +19,7 @@
 - [Ide Project AI](#-ide-project-ai)
 - [Arsitektur Sistem](#-arsitektur-sistem)
 - [Konfigurasi AI (Sidebar)](#-konfigurasi-ai-sidebar)
-- [Daftar Fitur (24 Fitur)](#-daftar-fitur-penting-24-fitur)
+- [Daftar Fitur (25 Fitur)](#-daftar-fitur-penting-25-fitur)
 - [Timeline Penyelesaian](#-timeline-penyelesaian)
 - [Teknologi & Instalasi Lokal](#-teknologi--cara-menjalankan-lokal)
 - [Skenario Demo](#-skenario-demo-untuk-dosen)
@@ -28,11 +29,11 @@
 
 ## 🌟 Ringkasan Eksekutif
 
-**UMKM Growth Copilot AI** adalah asisten bisnis cerdas komprehensif yang menggabungkan konsultasi AI *realtime* dengan alat bantu bisnis analitik (toolkit).
+**UMKM Growth Copilot AI** adalah asisten bisnis cerdas komprehensif yang menggabungkan konsultasi AI *realtime* dengan alat bantu bisnis analitik (toolkit) dan kemampuan analisis gambar berbasis AI Vision.
 
 **Tujuan Utama:**
 1. 💡 Memberikan **dampak nyata** bagi UMKM melalui rekomendasi yang langsung dapat dieksekusi.
-2. 🛠️ Menyediakan AI *tool* fungsional dengan **minimal 20 fitur aktif** (Selesai: 24 fitur).
+2. 🛠️ Menyediakan AI *tool* fungsional dengan **minimal 20 fitur aktif** (Selesai: 25 fitur).
 3. 💰 Menunjukkan **potensi monetisasi** sebagai produk digital (SaaS) yang layak jual.
 
 ---
@@ -51,8 +52,8 @@
 | No | Instruksi Dosen | Status | Referensi Bagian |
 |:---|:---|:---:|:---|
 | 1 | Menjelaskan ide project AI | ✅ Terpenuhi | [Ide Project AI](#-ide-project-ai) |
-| 2 | Menjelaskan minimal 20 fitur penting | ✅ **24 Fitur** | [Daftar Fitur](#-daftar-fitur-penting-24-fitur) |
-| 3 | Menjelaskan timeline masing-masing fitur | ✅ 24 Timeline | [Timeline](#-timeline-penyelesaian) |
+| 2 | Menjelaskan minimal 20 fitur penting | ✅ **25 Fitur** | [Daftar Fitur](#-daftar-fitur-penting-25-fitur) |
+| 3 | Menjelaskan timeline masing-masing fitur | ✅ 25 Timeline | [Timeline](#-timeline-penyelesaian) |
 | 4 | Project dibuat di GitHub + invite dosen | ✅ Terpenuhi | (Invite manual ke dosen) |
 | 5 | Menyertakan link GitHub + detail fitur | ✅ Terpenuhi | [Tautan Utama](#-tautan-utama) |
 | 6 | Submit cukup oleh perwakilan kelompok | ✅ Terpenuhi | Diwakilkan kelompok |
@@ -75,6 +76,7 @@ Banyak UMKM **tidak memiliki akses konsultasi bisnis** yang cepat dan terjangkau
 - *Persona* AI dan gaya bahasa yang bisa disesuaikan dan **benar-benar mengubah perilaku AI**.
 - Toolkit interaktif premium (Generator Gambar, Analisis BEP, Cashflow Alert).
 - Voice-to-text berbasis Whisper AI untuk input suara yang akurat.
+- **Analisis gambar AI Vision** — unggah foto produk atau nota struk, AI mengekstrak data dan memberikan insight bisnis secara otomatis.
 
 ### 🌍 Dampak Sosial
 - Membantu UMKM untuk "naik kelas".
@@ -92,13 +94,15 @@ Aplikasi ini memiliki arsitektur yang siap dikembangkan menjadi SaaS:
 ## 🏗️ Arsitektur Sistem
 
 1. **Frontend:** Framework **Next.js 16 (App Router)** dengan antarmuka UI/UX Premium (Glassmorphism & Micro-animations), dioptimalkan untuk mobile.
-2. **Backend:** Next.js API Routes (`/api/chat`, `/api/generate-image`, `/api/transcribe`).
+2. **Backend:** Next.js API Routes (`/api/chat`, `/api/generate-image`, `/api/transcribe`, `/api/analyze-image`).
 3. **AI Engine:**
    - **Groq API (Llama 3.1 / Llama 3.3):** Pemrosesan NLP, konsultasi chat, & Prompt Engineering adaptif.
-   - **Groq Whisper (whisper-large-v3-turbo):** Transkripsi suara ke teks dengan domain prompt UMKM.
+   - **Groq API (Llama 4 Scout Vision):** Analisis gambar — membaca foto produk & nota struk, mengekstrak data ke format terstruktur.
+   - **Groq Whisper (whisper-large-v3):** Transkripsi suara ke teks dengan domain prompt UMKM.
    - **Hugging Face (FLUX.1):** Generasi visual/gambar produk berkecepatan tinggi.
-4. **Data Storage:** Persistensi lokal klien (`localStorage`).
-5. **Deployment:** Vercel Global Edge Network.
+4. **Image Storage:** **Cloudinary** — penyimpanan gambar cloud untuk pipeline analisis AI Vision.
+5. **Data Storage:** Persistensi lokal klien (`localStorage`).
+6. **Deployment:** Vercel Global Edge Network.
 
 ---
 
@@ -117,9 +121,9 @@ Setiap pengaturan di sidebar **benar-benar mengubah perilaku AI** melalui system
 
 ---
 
-## ⚙️ Daftar Fitur Penting (24 Fitur)
+## ⚙️ Daftar Fitur Penting (25 Fitur)
 
-> **Status:** Seluruh **24 fitur** telah berhasil diimplementasikan 100%.
+> **Status:** Seluruh **25 fitur** telah berhasil diimplementasikan 100%.
 
 | Kategori | No | Fitur | Deskripsi | Status |
 |:---|:---|:---|:---|:---:|
@@ -147,8 +151,9 @@ Setiap pengaturan di sidebar **benar-benar mengubah perilaku AI** melalui system
 | | 22 | Content Calendar AI | Pembuat kalender konten media sosial otomatis | ✅ |
 | | 23 | Loan Readiness Score | Kalkulator skor kelayakan pendanaan bank | ✅ |
 | | 24 | Team Workspace | Catatan strategi kolaborasi tim | ✅ |
+| **AI Vision** | 25 | Analisis Gambar AI | Unggah foto produk atau nota struk — Groq Vision (Llama 4 Scout) mengekstrak data & memberikan insight bisnis otomatis | ✅ |
 
-*Catatan: Modul Advanced Tools (No. 16-24) memiliki antarmuka khusus (glassmorphism UI) yang dapat menyuntikkan (inject) kalkulasinya langsung ke AI Chat.*
+*Catatan: Modul Advanced Tools (No. 16-24) memiliki antarmuka khusus (glassmorphism UI) yang dapat menyuntikkan (inject) kalkulasinya langsung ke AI Chat. Fitur Analisis Gambar (No. 25) tersedia di tab "Analisis Gambar" pada panel Tools.*
 
 ---
 
@@ -166,6 +171,7 @@ Seluruh fitur telah diselesaikan tepat waktu sebelum *deadline* 13 April 2026.
 | Productivity Features (Fitur 9-14) | 08 Apr 2026 |
 | Error Handling & Basic Tools (Fitur 15-19) | 09 Apr 2026 |
 | Advanced Tools & UI Refinements (Fitur 20-24) | 10 Apr 2026 |
+| Analisis Gambar AI Vision (Fitur 25) | 17 Mei 2026 |
 
 </details>
 
@@ -187,15 +193,24 @@ Pastikan Anda memiliki [Node.js](https://nodejs.org/) terinstal di sistem Anda.
    ```
 
 3. **Atur Environment Variables:**
-   Buat file `.env.local` di root folder dan isi dengan key berikut:
+   Buat file `.env.local` di root folder berdasarkan `.env.example`:
    ```env
+   # Groq AI — chat, vision, dan whisper (satu API key untuk semua)
    GROQ_API_KEY=KUNCI_API_GROQ_ANDA
    GROQ_MODEL=llama-3.1-8b-instant
+   GROQ_WHISPER_MODEL=whisper-large-v3
+   WHISPER_LANGUAGE=id
+
+   # Hugging Face — generasi gambar promosi
    HF_API_KEY=KUNCI_HUGGING_FACE_ANDA
-   # Opsional — override model Whisper (default: whisper-large-v3-turbo)
-   # GROQ_WHISPER_MODEL=whisper-large-v3-turbo
+   HF_IMAGE_URL=https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell
+
+   # Cloudinary — penyimpanan gambar untuk fitur Analisis Gambar AI
+   CLOUDINARY_CLOUD_NAME=NAMA_CLOUD_ANDA
+   CLOUDINARY_API_KEY=API_KEY_CLOUDINARY_ANDA
+   CLOUDINARY_API_SECRET=API_SECRET_CLOUDINARY_ANDA
    ```
-   *(Peringatan: Jangan pernah melakukan commit pada file `.env.local` Anda)*
+   > ⚠️ Jangan pernah melakukan commit pada file `.env.local`
 
 4. **Jalankan Server:**
    ```bash
@@ -205,9 +220,27 @@ Pastikan Anda memiliki [Node.js](https://nodejs.org/) terinstal di sistem Anda.
 
 ---
 
-## 🎬 Skenario Demo Untuk Dosen
+## 🔑 Environment Variables untuk Vercel
 
-Untuk mendemonstrasikan keandalan aplikasi secara penuh, ikuti langkah berikut:
+Tambahkan semua variabel berikut di **Vercel → Project → Settings → Environment Variables**:
+
+| Variable | Keterangan |
+|:---|:---|
+| `GROQ_API_KEY` | API key Groq — dipakai untuk chat, vision, dan whisper |
+| `GROQ_MODEL` | Model chat, contoh: `llama-3.1-8b-instant` |
+| `GROQ_WHISPER_MODEL` | Model transkripsi suara: `whisper-large-v3` |
+| `WHISPER_LANGUAGE` | Bahasa transkripsi: `id` |
+| `HF_API_KEY` | API key Hugging Face untuk generasi gambar |
+| `HF_IMAGE_URL` | URL endpoint model FLUX.1 di Hugging Face |
+| `CLOUDINARY_CLOUD_NAME` | Nama cloud Cloudinary |
+| `CLOUDINARY_API_KEY` | API key Cloudinary |
+| `CLOUDINARY_API_SECRET` | API secret Cloudinary |
+
+> **Catatan:** Model vision untuk Analisis Gambar (`meta-llama/llama-4-scout-17b-16e-instruct`) sudah di-hardcode di backend — tidak perlu env var tambahan, cukup `GROQ_API_KEY` yang sama.
+
+---
+
+## 🎬 Skenario Demo Untuk Dosen
 
 **Demo Konfigurasi AI (membuktikan setting benar-benar berpengaruh):**
 1. Buka sidebar kiri, set **Persona** ke *"Mentor Operasional Toko"* dan **Gaya Jawaban** ke *"Data-driven dan tegas"*.
@@ -225,6 +258,15 @@ Untuk mendemonstrasikan keandalan aplikasi secara penuh, ikuti langkah berikut:
 1. Klik mode **Gambar** di header.
 2. Ketik: *"Foto produk kopi susu estetik untuk Instagram"*.
 3. Lihat gambar AI yang dihasilkan.
+
+**Demo Analisis Gambar AI Vision (Fitur Baru):**
+1. Klik **Tools** di header kanan, buka tab **Analisis Gambar**.
+2. Pilih jenis analisis: **Foto Produk**, **Nota/Struk**, atau **Analisis Umum**.
+3. Unggah foto produk UMKM atau foto nota belanja.
+4. Klik **Analisis dengan AI** — Groq Vision (Llama 4 Scout) akan:
+   - Untuk foto produk: mengidentifikasi nama, kategori, estimasi harga, dan 3 saran marketing.
+   - Untuk nota struk: mengekstrak semua item, qty, harga satuan, subtotal, dan total ke tabel.
+5. Hasil tampil dalam UI terstruktur, bukan teks mentah.
 
 **Demo Advanced Tools:**
 1. Klik **Tools** di header kanan, buka tab *Alat Analitik*.

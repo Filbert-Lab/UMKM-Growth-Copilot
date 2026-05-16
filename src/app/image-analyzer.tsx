@@ -577,7 +577,7 @@ export function ImageAnalyzer() {
             <div className="h-3 bg-[#f0d5cb] rounded-full w-3/5" />
           </div>
           <p className="text-center text-xs text-[#9d7a74] pt-1">
-            Mengunggah ke Cloudinary & menganalisis dengan Gemini AI...
+            Mengunggah gambar & diproses dengan Groq AI...
           </p>
         </div>
       )}
