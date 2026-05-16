@@ -11,10 +11,12 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { AdvancedTools } from "./advanced-tools";
+import { DocumentAnalyzer } from "./document-analyzer";
+import { InvoiceUploader } from "./components/InvoiceUploader";
 
 type ChatRole = "user" | "assistant";
 type ChatMode = "chat" | "gambar";
-type DrawerTab = "templates" | "tools";
+type DrawerTab = "templates" | "tools" | "dokumen" | "nota";
 
 type ChatMessage = {
   id: string;
@@ -227,10 +229,17 @@ export default function Home() {
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const docInputRef = useRef<HTMLInputElement | null>(null);
   const [attachedImage, setAttachedImage] = useState<{
     file: File;
     previewUrl: string;
   } | null>(null);
+  const [attachedDoc, setAttachedDoc] = useState<{
+    file: File;
+    name: string;
+    sizeKb: number;
+  } | null>(null);
+  const [isAnalyzingDoc, setIsAnalyzingDoc] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
@@ -353,8 +362,8 @@ export default function Home() {
     event?.preventDefault();
 
     const trimmed = draft.trim();
-    // Boleh kirim tanpa teks jika ada gambar terlampir
-    if ((!trimmed && !attachedImage) || isLoading || requestLockRef.current) {
+    // Boleh kirim tanpa teks jika ada gambar atau dokumen terlampir
+    if ((!trimmed && !attachedImage && !attachedDoc) || isLoading || requestLockRef.current) {
       return;
     }
 
@@ -367,7 +376,7 @@ export default function Home() {
         lastUserMessage.content.trim().toLowerCase() ===
         trimmed.trim().toLowerCase();
       const ageMs = Date.now() - new Date(lastUserMessage.createdAt).getTime();
-      if (sameContent && ageMs < 2500 && !attachedImage) {
+      if (sameContent && ageMs < 2500 && !attachedImage && !attachedDoc) {
         setError("Prompt yang sama baru saja terkirim. Tunggu sebentar.");
         return;
       }
@@ -378,7 +387,7 @@ export default function Home() {
     const userMessage: ChatMessage = {
       id: createId(),
       role: "user",
-      content: trimmed || "Analisis gambar ini.",
+      content: trimmed || (attachedDoc ? `Analisis dokumen: ${attachedDoc.name}` : "Analisis gambar ini."),
       imageUrl: attachedImage ? attachedImage.previewUrl : undefined,
       createdAt: new Date().toISOString(),
     };
@@ -387,8 +396,11 @@ export default function Home() {
     setMessages(nextHistory);
     setDraft("");
     const imageToSend = attachedImage;
+    const docToSend = attachedDoc;
     setAttachedImage(null);
+    setAttachedDoc(null);
     if (imageInputRef.current) imageInputRef.current.value = "";
+    if (docInputRef.current) docInputRef.current.value = "";
     setIsLoading(true);
     setError(null);
 
@@ -486,6 +498,81 @@ export default function Home() {
       return;
     }
 
+    // ── Mode chat dengan dokumen (Gemini) ─────────────────────────────────
+    if (docToSend) {
+      setIsAnalyzingDoc(true);
+      try {
+        const formData = new FormData();
+        formData.append("file", docToSend.file);
+
+        const response = await fetch("/api/analyze-document", {
+          method: "POST",
+          body: formData,
+        });
+
+        const payload = (await response.json().catch(() => null)) as {
+          success?: boolean;
+          analysis?: import("./api/analyze-document/route").DocumentAnalysisResult;
+          error?: string;
+        } | null;
+
+        if (!response.ok || !payload?.success || !payload.analysis) {
+          throw new Error(payload?.error ?? "Gagal menganalisis dokumen.");
+        }
+
+        const a = payload.analysis;
+        const userQuestion = trimmed
+          ? `\n\n*Pertanyaan pengguna: ${trimmed}*`
+          : "";
+
+        const replyLines: string[] = [
+          `**📄 Analisis Dokumen: ${a.fileName}**${userQuestion}`,
+          "",
+          `**📋 Ringkasan**`,
+          a.summary,
+          "",
+        ];
+
+        if (a.keyPoints.length > 0) {
+          replyLines.push("**🔑 Poin Penting**");
+          a.keyPoints.forEach((p, i) => replyLines.push(`${i + 1}. ${p}`));
+          replyLines.push("");
+        }
+
+        if (a.businessInsights.length > 0) {
+          replyLines.push("**💡 Insight Bisnis**");
+          a.businessInsights.forEach((p, i) => replyLines.push(`${i + 1}. ${p}`));
+          replyLines.push("");
+        }
+
+        if (a.actionItems.length > 0) {
+          replyLines.push("**✅ Langkah Aksi**");
+          a.actionItems.forEach((p, i) => replyLines.push(`${i + 1}. ${p}`));
+        }
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: createId(),
+            role: "assistant",
+            content: replyLines.join("\n"),
+            createdAt: new Date().toISOString(),
+          },
+        ]);
+      } catch (caughtError) {
+        setError(
+          caughtError instanceof Error
+            ? caughtError.message
+            : "Terjadi kendala saat menganalisis dokumen.",
+        );
+      } finally {
+        setIsLoading(false);
+        setIsAnalyzingDoc(false);
+        requestLockRef.current = false;
+      }
+      return;
+    }
+
     // ── Mode chat teks biasa ──────────────────────────────────────────────
     const chatHistory = nextHistory.map((msg) => {
       if (isImageDataUrl(msg.content) || msg.imageUrl) {
@@ -560,6 +647,36 @@ export default function Home() {
   function removeAttachedImage() {
     setAttachedImage(null);
     if (imageInputRef.current) imageInputRef.current.value = "";
+  }
+
+  function handleDocAttach(file: File) {
+    const allowedDocTypes = [
+      "application/pdf",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "text/plain",
+    ];
+    if (!allowedDocTypes.includes(file.type)) {
+      setError("Format dokumen tidak didukung. Gunakan PDF, DOCX, atau TXT.");
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      setError("Ukuran dokumen terlalu besar. Maksimal 20 MB.");
+      return;
+    }
+    if (file.size === 0) {
+      setError("File kosong. Pastikan dokumen memiliki konten.");
+      return;
+    }
+    // Can't have both image and doc at the same time
+    setAttachedImage(null);
+    if (imageInputRef.current) imageInputRef.current.value = "";
+    setAttachedDoc({ file, name: file.name, sizeKb: Math.round(file.size / 1024) });
+    window.requestAnimationFrame(() => textareaRef.current?.focus());
+  }
+
+  function removeAttachedDoc() {
+    setAttachedDoc(null);
+    if (docInputRef.current) docInputRef.current.value = "";
   }
 
   function addTemplate(text: string) {
@@ -1064,7 +1181,7 @@ export default function Home() {
             >
               <span className="hidden sm:inline">Fitur &amp; Tools</span>
               <span className="sm:hidden">Tools</span>
-              <span className="feature-badge ml-1">24</span>
+              <span className="feature-badge ml-1">27</span>
             </button>
           </div>
         </header>
@@ -1353,6 +1470,8 @@ export default function Home() {
                 <span className="h-2 w-2 animate-pulse rounded-full bg-[#cf704f]" />
                 {mode === "gambar"
                   ? "AI sedang membuat visual promosi..."
+                  : isAnalyzingDoc
+                  ? "Gemini AI sedang menganalisis dokumen..."
                   : attachedImage
                   ? "Groq AI sedang menganalisis gambar..."
                   : "AI sedang menyusun rekomendasi..."}
@@ -1363,7 +1482,7 @@ export default function Home() {
 
         {/* Compact Chat Input */}
         <div className="chat-input-bar">
-          {/* Hidden file input */}
+          {/* Hidden file inputs */}
           <input
             ref={imageInputRef}
             type="file"
@@ -1372,6 +1491,16 @@ export default function Home() {
             onChange={(e) => {
               const file = e.target.files?.[0];
               if (file) handleImageAttach(file);
+            }}
+          />
+          <input
+            ref={docInputRef}
+            type="file"
+            accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleDocAttach(file);
             }}
           />
 
@@ -1404,6 +1533,30 @@ export default function Home() {
               </div>
             )}
 
+            {/* Document preview strip */}
+            {attachedDoc && (
+              <div className="flex items-center gap-2 mb-2 px-1">
+                <div className="relative flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-[#f8d4c7] to-[#e4a896] flex items-center justify-center shadow-sm">
+                  <svg className="w-5 h-5 text-[#9a4224]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.8">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <button
+                    type="button"
+                    onClick={removeAttachedDoc}
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-[#be5d3d] text-white flex items-center justify-center shadow-sm hover:bg-[#9d4a30] transition-colors"
+                    aria-label="Hapus dokumen"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold text-[#3a1f1a] truncate" title={attachedDoc.name}>{attachedDoc.name}</p>
+                  <p className="text-[10px] text-[#7c5046]">{attachedDoc.sizeKb} KB · Gemini AI akan menganalisis</p>
+                </div>
+              </div>
+            )}
             {isRecording && (
               <div className="recording-indicator" aria-live="polite">
                 <div className="recording-dot" />
@@ -1492,7 +1645,7 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => imageInputRef.current?.click()}
-                  disabled={isLoading || isRecording || !!attachedImage}
+                  disabled={isLoading || isRecording || !!attachedImage || !!attachedDoc}
                   className="mic-btn flex-shrink-0"
                   title="Lampirkan gambar untuk dianalisis AI"
                   aria-label="Lampirkan gambar"
@@ -1513,6 +1666,30 @@ export default function Home() {
                   </svg>
                 </button>
               )}
+              {/* Document attach button — only in chat mode */}
+              {mode === "chat" && (
+                <button
+                  type="button"
+                  onClick={() => docInputRef.current?.click()}
+                  disabled={isLoading || isRecording || !!attachedImage || !!attachedDoc}
+                  className={`mic-btn flex-shrink-0 ${attachedDoc ? "text-[#be5d3d]" : ""}`}
+                  title="Lampirkan dokumen PDF/DOCX/TXT untuk dianalisis Gemini AI"
+                  aria-label="Lampirkan dokumen"
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </button>
+              )}
               <textarea
                 ref={textareaRef}
                 value={draft}
@@ -1527,6 +1704,8 @@ export default function Home() {
                     ? "Sedang mendengarkan suara Anda..."
                     : isTranscribing
                       ? "Memproses suara..."
+                      : attachedDoc
+                      ? "Ketik pertanyaan tentang dokumen ini... (opsional)"
                       : attachedImage
                       ? "Tanya apa saja tentang gambar ini... (opsional)"
                       : mode === "gambar"
@@ -1538,7 +1717,7 @@ export default function Home() {
               />
               <button
                 type="submit"
-                disabled={(!draft.trim() && !attachedImage) || isLoading || isRecording}
+                disabled={(!draft.trim() && !attachedImage && !attachedDoc) || isLoading || isRecording}
                 className="chat-send-btn"
                 aria-label="Kirim"
               >
@@ -1609,6 +1788,20 @@ export default function Home() {
             onClick={() => setDrawerTab("tools")}
           >
             Alat Analitik
+          </button>
+          <button
+            type="button"
+            className={`tab-btn ${drawerTab === "dokumen" ? "is-active" : ""}`}
+            onClick={() => setDrawerTab("dokumen")}
+          >
+            Analisis Dokumen
+          </button>
+          <button
+            type="button"
+            className={`tab-btn ${drawerTab === "nota" ? "is-active" : ""}`}
+            onClick={() => setDrawerTab("nota")}
+          >
+            Digitalisasi Nota
           </button>
         </div>
 
@@ -1693,6 +1886,26 @@ export default function Home() {
                 setDrawerOpen(false);
               }}
             />
+          )}
+
+          {drawerTab === "dokumen" && (
+            <div>
+              <p className="category-title">Analisis Dokumen AI</p>
+              <p className="text-xs text-[#6f4f4a] mb-3">
+                Upload PDF, DOCX, atau TXT — Gemini AI akan merangkum isi dokumen dan memberikan insight bisnis.
+              </p>
+              <DocumentAnalyzer />
+            </div>
+          )}
+
+          {drawerTab === "nota" && (
+            <div>
+              <p className="category-title">Digitalisasi Nota</p>
+              <p className="text-xs text-[#6f4f4a] mb-3">
+                Foto struk atau nota belanja — Gemini AI mengekstrak data item, harga, dan total untuk pembukuan otomatis.
+              </p>
+              <InvoiceUploader />
+            </div>
           )}
         </div>
       </div>

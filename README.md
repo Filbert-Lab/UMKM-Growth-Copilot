@@ -5,6 +5,7 @@
   [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org/)
   [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?logo=tailwind-css)](https://tailwindcss.com/)
   [![Groq API](https://img.shields.io/badge/Groq_API-Llama_4_Scout-f55036?logo=groq)](https://groq.com/)
+  [![Gemini API](https://img.shields.io/badge/Gemini_API-2.5_Flash-4285F4?logo=google)](https://aistudio.google.com/)
   [![Cloudinary](https://img.shields.io/badge/Cloudinary-Image_Upload-3448C5?logo=cloudinary)](https://cloudinary.com/)
   [![Hugging Face](https://img.shields.io/badge/Hugging_Face-FLUX.1-ffcc00?logo=huggingface)](https://huggingface.co/)
   [![Deployed on Vercel](https://img.shields.io/badge/Deployed_on-Vercel-black?logo=vercel)](https://umkm-growth-copilot.vercel.app/)
@@ -100,6 +101,7 @@ Aplikasi ini memiliki arsitektur yang siap dikembangkan menjadi SaaS:
    - **Groq API (Llama 4 Scout Vision):** Analisis gambar — membaca foto produk & nota struk, mengekstrak data ke format terstruktur.
    - **Groq Whisper (whisper-large-v3):** Transkripsi suara ke teks dengan domain prompt UMKM.
    - **Hugging Face (FLUX.1):** Generasi visual/gambar produk berkecepatan tinggi.
+   - **Google Gemini (gemini-2.5-flash):** Analisis dokumen bisnis — membaca PDF, DOCX, dan TXT, mengekstrak ringkasan, poin penting, insight bisnis, dan langkah aksi.
 4. **Image Storage:** **Cloudinary** — penyimpanan gambar cloud untuk pipeline analisis AI Vision.
 5. **Data Storage:** Persistensi lokal klien (`localStorage`).
 6. **Deployment:** Vercel Global Edge Network.
@@ -152,8 +154,9 @@ Setiap pengaturan di sidebar **benar-benar mengubah perilaku AI** melalui system
 | | 23 | Loan Readiness Score | Kalkulator skor kelayakan pendanaan bank | ✅ |
 | | 24 | Team Workspace | Catatan strategi kolaborasi tim | ✅ |
 | **AI Vision** | 25 | Analisis Gambar AI | Unggah foto produk atau nota struk — Groq Vision (Llama 4 Scout) mengekstrak data & memberikan insight bisnis otomatis | ✅ |
+| **AI Dokumen** | 26 | Analisis Dokumen AI | Unggah PDF, DOCX, atau TXT — Gemini 2.5 Flash merangkum isi dokumen, mengekstrak poin penting, insight bisnis, dan langkah aksi | ✅ |
 
-*Catatan: Modul Advanced Tools (No. 16-24) memiliki antarmuka khusus (glassmorphism UI) yang dapat menyuntikkan (inject) kalkulasinya langsung ke AI Chat. Fitur Analisis Gambar (No. 25) tersedia di tab "Analisis Gambar" pada panel Tools.*
+*Catatan: Modul Advanced Tools (No. 16-24) memiliki antarmuka khusus (glassmorphism UI) yang dapat menyuntikkan (inject) kalkulasinya langsung ke AI Chat. Fitur Analisis Gambar (No. 25) tersedia di tab "Analisis Gambar" pada panel Tools. Fitur Analisis Dokumen (No. 26) tersedia di tab "Analisis Dokumen" pada panel Tools.*
 
 ---
 
@@ -172,6 +175,7 @@ Seluruh fitur telah diselesaikan tepat waktu sebelum *deadline* 13 April 2026.
 | Error Handling & Basic Tools (Fitur 15-19) | 09 Apr 2026 |
 | Advanced Tools & UI Refinements (Fitur 20-24) | 10 Apr 2026 |
 | Analisis Gambar AI Vision (Fitur 25) | 17 Mei 2026 |
+| Analisis Dokumen AI — Gemini (Fitur 26) | 17 Mei 2026 |
 
 </details>
 
@@ -209,6 +213,9 @@ Pastikan Anda memiliki [Node.js](https://nodejs.org/) terinstal di sistem Anda.
    CLOUDINARY_CLOUD_NAME=NAMA_CLOUD_ANDA
    CLOUDINARY_API_KEY=API_KEY_CLOUDINARY_ANDA
    CLOUDINARY_API_SECRET=API_SECRET_CLOUDINARY_ANDA
+
+   # Google Gemini — analisis dokumen PDF/DOCX/TXT
+   GEMINI_API_KEY=KUNCI_API_GEMINI_ANDA
    ```
    > ⚠️ Jangan pernah melakukan commit pada file `.env.local`
 
@@ -235,8 +242,9 @@ Tambahkan semua variabel berikut di **Vercel → Project → Settings → Enviro
 | `CLOUDINARY_CLOUD_NAME` | Nama cloud Cloudinary |
 | `CLOUDINARY_API_KEY` | API key Cloudinary |
 | `CLOUDINARY_API_SECRET` | API secret Cloudinary |
+| `GEMINI_API_KEY` | API key Google Gemini — dipakai untuk analisis dokumen PDF/DOCX/TXT |
 
-> **Catatan:** Model vision untuk Analisis Gambar (`meta-llama/llama-4-scout-17b-16e-instruct`) sudah di-hardcode di backend — tidak perlu env var tambahan, cukup `GROQ_API_KEY` yang sama.
+> **Catatan:** Model Gemini yang digunakan adalah `gemini-2.5-flash` (sudah di-hardcode di backend). Model vision untuk Analisis Gambar (`meta-llama/llama-4-scout-17b-16e-instruct`) juga sudah di-hardcode — tidak perlu env var tambahan selain yang tercantum di atas.
 
 ---
 
@@ -258,6 +266,16 @@ Tambahkan semua variabel berikut di **Vercel → Project → Settings → Enviro
 1. Klik mode **Gambar** di header.
 2. Ketik: *"Foto produk kopi susu estetik untuk Instagram"*.
 3. Lihat gambar AI yang dihasilkan.
+
+**Demo Analisis Dokumen AI (Fitur Baru — Gemini):**
+1. Klik **Tools** di header kanan, buka tab **Analisis Dokumen**.
+2. Upload file PDF, DOCX, atau TXT (contoh: proposal bisnis, laporan keuangan, SOP, kontrak).
+3. Klik **Analisis dengan Gemini AI** — Gemini 2.5 Flash akan:
+   - Membuat **ringkasan** dokumen dalam 2-3 kalimat.
+   - Mengekstrak **poin penting** dari isi dokumen.
+   - Memberikan **insight bisnis** yang relevan untuk UMKM.
+   - Menyusun **langkah aksi** konkret berdasarkan konten dokumen.
+4. Hasil tampil dalam UI terstruktur dengan kartu per kategori.
 
 **Demo Analisis Gambar AI Vision (Fitur Baru):**
 1. Klik **Tools** di header kanan, buka tab **Analisis Gambar**.
