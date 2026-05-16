@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState } from "react";
 type Settings = {
   persona: string;
   tone: string;
-  language: "id" | "en";
   responseLength: "short" | "medium" | "long";
   temperature: number;
   businessScale: "mikro" | "kecil" | "menengah";

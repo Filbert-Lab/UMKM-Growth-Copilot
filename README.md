@@ -17,6 +17,7 @@
 - [Pemenuhan Instruksi Dosen](#-pemenuhan-instruksi-dosen)
 - [Ide Project AI](#-ide-project-ai)
 - [Arsitektur Sistem](#-arsitektur-sistem)
+- [Konfigurasi AI (Sidebar)](#-konfigurasi-ai-sidebar)
 - [Daftar Fitur (24 Fitur)](#-daftar-fitur-penting-24-fitur)
 - [Timeline Penyelesaian](#-timeline-penyelesaian)
 - [Teknologi & Instalasi Lokal](#-teknologi--cara-menjalankan-lokal)
@@ -71,8 +72,9 @@ Banyak UMKM **tidak memiliki akses konsultasi bisnis** yang cepat dan terjangkau
 ### 💡 Solusi Yang Dibangun
 **UMKM Growth Copilot AI** hadir untuk memecahkan masalah tersebut dengan:
 - Konsultasi bisnis interaktif secara *real-time*.
-- *Persona* AI dan gaya bahasa yang bisa disesuaikan (Custom Tone & Context).
+- *Persona* AI dan gaya bahasa yang bisa disesuaikan dan **benar-benar mengubah perilaku AI**.
 - Toolkit interaktif premium (Generator Gambar, Analisis BEP, Cashflow Alert).
+- Voice-to-text berbasis Whisper AI untuk input suara yang akurat.
 
 ### 🌍 Dampak Sosial
 - Membantu UMKM untuk "naik kelas".
@@ -89,13 +91,29 @@ Aplikasi ini memiliki arsitektur yang siap dikembangkan menjadi SaaS:
 
 ## 🏗️ Arsitektur Sistem
 
-1. **Frontend:** Framework **Next.js 16 (App Router)** dengan antarmuka UI/UX Premium (Glassmorphism & Micro-animations).
-2. **Backend:** Next.js API Routes (`/api/chat` dan `/api/generate-image`).
+1. **Frontend:** Framework **Next.js 16 (App Router)** dengan antarmuka UI/UX Premium (Glassmorphism & Micro-animations), dioptimalkan untuk mobile.
+2. **Backend:** Next.js API Routes (`/api/chat`, `/api/generate-image`, `/api/transcribe`).
 3. **AI Engine:**
-   - **Groq API (Llama 3.1):** Pemrosesan NLP, konsultasi chat, & Prompt Engineering.
+   - **Groq API (Llama 3.1 / Llama 3.3):** Pemrosesan NLP, konsultasi chat, & Prompt Engineering adaptif.
+   - **Groq Whisper (whisper-large-v3-turbo):** Transkripsi suara ke teks dengan domain prompt UMKM.
    - **Hugging Face (FLUX.1):** Generasi visual/gambar produk berkecepatan tinggi.
 4. **Data Storage:** Persistensi lokal klien (`localStorage`).
 5. **Deployment:** Vercel Global Edge Network.
+
+---
+
+## ⚙️ Konfigurasi AI (Sidebar)
+
+Setiap pengaturan di sidebar **benar-benar mengubah perilaku AI** melalui system prompt yang dinamis:
+
+| Pengaturan | Efek Nyata pada AI |
+|:---|:---|
+| **Persona AI** | Mengubah sudut pandang dan fokus keahlian AI. *Konsultan Pertumbuhan* → selalu sertakan metrik target. *Spesialis Marketing* → berikan contoh caption/hook konkret. *Mentor Operasional* → berikan checklist/SOP siap tempel. *Advisor Keuangan* → sertakan angka dan rumus sederhana. |
+| **Gaya Jawaban** | Mengubah gaya penulisan secara menyeluruh. *Aplikatif & Profesional* → lugas, satu aksi per paragraf. *Santai & Memotivasi* → pakai "Kak", "yuk", sisipkan motivasi. *Data-driven & Tegas* → wajib angka/persentase, hindari kata ambigu. *Formal Investor* → bahasa laporan bisnis, gunakan istilah ROI/CAC/LTV. |
+| **Skala Bisnis** | Menyesuaikan kompleksitas dan biaya solusi. *Mikro* → solusi gratis/murah, WhatsApp & IG organik. *Kecil* → boleh pakai tools berbayar & tim kecil. *Menengah* → CRM, ERP, multi-channel, ekspansi. |
+| **Sektor Usaha** | Menyuntikkan konteks industri ke setiap jawaban (contoh: "kuliner" → AI otomatis menyebut HPP bahan baku, food cost, dll). |
+| **Panjang Respon** | *Ringkas* → maks 130 kata, langsung ke inti. *Sedang* → 220-350 kata. *Panjang* → 380-600 kata dengan penjabaran taktis. |
+| **Kreativitas** | Mengontrol `temperature` Groq API (0.0 = deterministik/konsisten, 1.0 = kreatif/beragam). |
 
 ---
 
@@ -106,19 +124,19 @@ Aplikasi ini memiliki arsitektur yang siap dikembangkan menjadi SaaS:
 | Kategori | No | Fitur | Deskripsi | Status |
 |:---|:---|:---|:---|:---:|
 | **Core Chat** | 1 | AI Chat Realtime | Konsultasi bisnis kilat (Groq API) | ✅ |
-| | 2 | Persona AI | Pilihan ahli: Growth, Marketing, Ops, Finance | ✅ |
-| | 3 | Tone Control | Pengaturan gaya bicara AI | ✅ |
-| | 4 | Multi Language Output | Output Bilingual (Indonesia / Inggris) | ✅ |
-| | 5 | Response Length Control | Mode penjelasan Singkat, Sedang, atau Panjang | ✅ |
-| | 6 | Temperature Slider | Pengatur tingkat kreativitas respons AI | ✅ |
-| | 7 | Business Scale Context | Konteks skala bisnis (Mikro, Kecil, Menengah) | ✅ |
-| | 8 | Sector Context | Fokus sektor usaha (Kuliner, Jasa, Fashion, dll) | ✅ |
+| | 2 | Persona AI | Pilihan ahli: Growth, Marketing, Ops, Finance — mengubah fokus & gaya AI | ✅ |
+| | 3 | Tone Control | Pengaturan gaya bicara AI (4 mode berbeda) | ✅ |
+| | 4 | Business Scale Context | Konteks skala bisnis (Mikro/Kecil/Menengah) — menyesuaikan kompleksitas solusi | ✅ |
+| | 5 | Sector Context | Fokus sektor usaha — AI otomatis pakai istilah industri yang relevan | ✅ |
+| | 6 | Response Length Control | Mode penjelasan Ringkas, Sedang, atau Panjang | ✅ |
+| | 7 | Temperature Slider | Pengatur tingkat kreativitas respons AI (0.0–1.0) | ✅ |
+| | 8 | Voice to Text (Whisper AI) | Input suara dengan transkripsi akurat berbasis domain UMKM | ✅ |
 | **Productivity** | 9 | Prompt Template Library | Kumpulan template siap pakai premium | ✅ |
 | | 10 | Local Chat History | Riwayat chat tersimpan tanpa database server | ✅ |
 | | 11 | Export to Markdown | Ekspor sesi ke file `*.md` rapi | ✅ |
 | | 12 | Copy Latest Answer | Menyalin instruksi dengan sekali klik | ✅ |
 | | 13 | Session Stats | Menghitung token dan estimasi biaya pesan | ✅ |
-| | 14 | Keyboard Shortcuts | Navigasi cepat (Ctrl+Enter) | ✅ |
+| | 14 | Keyboard Shortcuts | Navigasi cepat (Enter kirim, Shift+Enter baris baru) | ✅ |
 | | 15 | Error Handling UX | Pesan error ramah pengguna | ✅ |
 | **Advanced Tools** | 16 | KPI Generator | Alat perumus Indikator Kinerja | ✅ |
 | | 17 | Campaign Planner | Perencanaan kalender promosi | ✅ |
@@ -130,7 +148,7 @@ Aplikasi ini memiliki arsitektur yang siap dikembangkan menjadi SaaS:
 | | 23 | Loan Readiness Score | Kalkulator skor kelayakan pendanaan bank | ✅ |
 | | 24 | Team Workspace | Catatan strategi kolaborasi tim | ✅ |
 
-*Catatan: Modul Advanced Tools (No. 16-24) memiliki antarmuka khusus (glassmorphism UI) yang dapat menyuntikkan (inject) kalkulasinya langsung ke otak AI.*
+*Catatan: Modul Advanced Tools (No. 16-24) memiliki antarmuka khusus (glassmorphism UI) yang dapat menyuntikkan (inject) kalkulasinya langsung ke AI Chat.*
 
 ---
 
@@ -143,11 +161,11 @@ Seluruh fitur telah diselesaikan tepat waktu sebelum *deadline* 13 April 2026.
 
 | Fitur | Tanggal Selesai |
 |---|---|
-| AI Chat Realtime & Base Contexts (Fitur 1-4) | 06 Apr 2026 |
-| Advanced Controls (Fitur 5-8) | 07 Apr 2026 |
+| AI Chat Realtime & Base Contexts (Fitur 1-5) | 06 Apr 2026 |
+| Advanced Controls & Voice Input (Fitur 6-8) | 07 Apr 2026 |
 | Productivity Features (Fitur 9-14) | 08 Apr 2026 |
 | Error Handling & Basic Tools (Fitur 15-19) | 09 Apr 2026 |
-| Advanced Tools & UI Refinements (Fitur 20-24)| 10 Apr 2026 |
+| Advanced Tools & UI Refinements (Fitur 20-24) | 10 Apr 2026 |
 
 </details>
 
@@ -174,6 +192,8 @@ Pastikan Anda memiliki [Node.js](https://nodejs.org/) terinstal di sistem Anda.
    GROQ_API_KEY=KUNCI_API_GROQ_ANDA
    GROQ_MODEL=llama-3.1-8b-instant
    HF_API_KEY=KUNCI_HUGGING_FACE_ANDA
+   # Opsional — override model Whisper (default: whisper-large-v3-turbo)
+   # GROQ_WHISPER_MODEL=whisper-large-v3-turbo
    ```
    *(Peringatan: Jangan pernah melakukan commit pada file `.env.local` Anda)*
 
@@ -189,12 +209,27 @@ Pastikan Anda memiliki [Node.js](https://nodejs.org/) terinstal di sistem Anda.
 
 Untuk mendemonstrasikan keandalan aplikasi secara penuh, ikuti langkah berikut:
 
-1. Buka tab **Pengaturan Sidebar** (Kiri).
-2. Set Persona ke **"Mentor Operasional Toko"** dan Tone ke **"Data-driven dan tegas"**.
-3. Ketik di chat: *"Buat strategi naikkan omzet 20% dalam 30 hari untuk usaha kuliner."*
-4. Evaluasi hasil _formatting_ tabel dan _bold text_ dari AI.
-5. Klik mode **Gambar**, ketik *"Foto produk kopi estetik"*, dan lihat generasi gambarnya.
-6. Buka **Fitur & Tools** (Kanan), coba salah satu kalkulator (misal: Break-Even), lalu tekan **"Kirim ke Chat"** untuk melihat bagaimana alat analitik bekerja terpadu dengan AI Chat.
+**Demo Konfigurasi AI (membuktikan setting benar-benar berpengaruh):**
+1. Buka sidebar kiri, set **Persona** ke *"Mentor Operasional Toko"* dan **Gaya Jawaban** ke *"Data-driven dan tegas"*.
+2. Ketik: *"Strategi naikkan omzet 20% dalam 30 hari untuk usaha kuliner."*
+3. Perhatikan jawaban: ada angka/persentase konkret, format tegas, fokus operasional.
+4. Ganti **Persona** ke *"Spesialis Marketing Digital"* dan **Gaya** ke *"Santai dan memotivasi"*, kirim pertanyaan yang sama.
+5. Bandingkan: jawaban berubah total — ada contoh caption, pakai kata "Kak/yuk", tone berbeda.
+
+**Demo Voice Input:**
+1. Klik tombol mic di input chat.
+2. Ucapkan: *"Buatkan SOP untuk kasir toko kuliner saya"*.
+3. Teks muncul otomatis di kolom chat, siap dikirim.
+
+**Demo Generator Gambar:**
+1. Klik mode **Gambar** di header.
+2. Ketik: *"Foto produk kopi susu estetik untuk Instagram"*.
+3. Lihat gambar AI yang dihasilkan.
+
+**Demo Advanced Tools:**
+1. Klik **Tools** di header kanan, buka tab *Alat Analitik*.
+2. Isi kalkulator **Break-Even Analyzer**, lalu klik **"Kirim ke Chat"**.
+3. AI langsung menganalisis data BEP tersebut dalam konteks bisnis pengguna.
 
 ---
 

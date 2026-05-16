@@ -25,7 +25,6 @@ type ChatMessage = {
 type Settings = {
   persona: string;
   tone: string;
-  language: "id" | "en";
   responseLength: "short" | "medium" | "long";
   temperature: number;
   businessScale: "mikro" | "kecil" | "menengah";
@@ -46,7 +45,6 @@ const baseWelcome: ChatMessage = {
 const defaultSettings: Settings = {
   persona: "Konsultan Pertumbuhan UMKM",
   tone: "Aplikatif dan profesional",
-  language: "id",
   responseLength: "long",
   temperature: 0.6,
   businessScale: "mikro",
@@ -98,11 +96,6 @@ type SelectOption<TValue extends string> = {
   value: TValue;
   label: string;
 };
-
-const modeOptions: Array<SelectOption<ChatMode>> = [
-  { value: "chat", label: "Konsultasi Chat" },
-  { value: "gambar", label: "Generator Gambar" },
-];
 
 type AnimatedSelectProps<TValue extends string> = {
   value: TValue;
@@ -189,6 +182,12 @@ function isImageDataUrl(content: string) {
   return content.startsWith("data:image/");
 }
 
+function formatRecordingTime(totalSeconds: number) {
+  const mins = Math.floor(totalSeconds / 60);
+  const secs = totalSeconds % 60;
+  return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+}
+
 function toExportMarkdown(messages: ChatMessage[]) {
   return messages
     .map((message) => {
@@ -225,6 +224,16 @@ export default function Home() {
   const requestLockRef = useRef(false);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const [audioLevel, setAudioLevel] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<number | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
     const storedMessages = window.localStorage.getItem(MESSAGE_STORAGE);
@@ -292,6 +301,28 @@ export default function Home() {
       behavior: "smooth",
     });
   }, [messages, isLoading]);
+
+  // Cleanup recording resources on unmount.
+  useEffect(() => {
+    return () => {
+      if (recordingTimerRef.current !== null) {
+        window.clearInterval(recordingTimerRef.current);
+      }
+      if (animationFrameRef.current !== null) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close().catch(() => {});
+      }
+      if (mediaRecorderRef.current?.state === "recording") {
+        try {
+          mediaRecorderRef.current.stop();
+        } catch {
+          // ignore
+        }
+      }
+    };
+  }, []);
 
   const stats = useMemo(() => {
     const totalChars = messages.reduce((total, item) => {
@@ -498,6 +529,198 @@ export default function Home() {
     el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
   }
 
+  function stopAudioMonitoring() {
+    if (animationFrameRef.current !== null) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => {});
+      audioContextRef.current = null;
+    }
+    analyserRef.current = null;
+    setAudioLevel(0);
+  }
+
+  function startAudioMonitoring(stream: MediaStream) {
+    try {
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext })
+          .webkitAudioContext;
+      const audioCtx = new AudioCtx();
+      const source = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+
+      audioContextRef.current = audioCtx;
+      analyserRef.current = analyser;
+
+      const buffer = new Uint8Array(analyser.frequencyBinCount);
+
+      const tick = () => {
+        if (!analyserRef.current) return;
+        analyserRef.current.getByteFrequencyData(buffer);
+        let sum = 0;
+        for (let i = 0; i < buffer.length; i++) sum += buffer[i];
+        const avg = sum / buffer.length / 255; // 0..1
+        setAudioLevel(avg);
+        animationFrameRef.current = requestAnimationFrame(tick);
+      };
+      tick();
+    } catch {
+      // Audio monitoring is optional; ignore errors.
+    }
+  }
+
+  function pickRecordingMimeType(): string | undefined {
+    const candidates = [
+      "audio/webm;codecs=opus",
+      "audio/webm",
+      "audio/mp4;codecs=mp4a.40.2",
+      "audio/mp4",
+      "audio/ogg;codecs=opus",
+    ];
+    for (const candidate of candidates) {
+      if (
+        typeof MediaRecorder !== "undefined" &&
+        MediaRecorder.isTypeSupported &&
+        MediaRecorder.isTypeSupported(candidate)
+      ) {
+        return candidate;
+      }
+    }
+    return undefined;
+  }
+
+  async function toggleRecording() {
+    if (isRecording) {
+      mediaRecorderRef.current?.stop();
+      setIsRecording(false);
+      if (recordingTimerRef.current !== null) {
+        window.clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+      stopAudioMonitoring();
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          channelCount: 1,
+          sampleRate: 16000,
+        },
+      });
+
+      const mimeType = pickRecordingMimeType();
+      const mediaRecorder = mimeType
+        ? new MediaRecorder(stream, { mimeType, audioBitsPerSecond: 64000 })
+        : new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+      setRecordingDuration(0);
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach((track) => track.stop());
+        stopAudioMonitoring();
+
+        const finalMime = mediaRecorder.mimeType || mimeType || "audio/webm";
+        const audioBlob = new Blob(audioChunksRef.current, { type: finalMime });
+
+        // Reject very short recordings (< 0.5s of data) — usually accidental taps
+        if (audioBlob.size < 2048) {
+          setError(
+            "Rekaman terlalu pendek. Tekan tombol mic, bicara, lalu tekan lagi untuk berhenti.",
+          );
+          return;
+        }
+
+        const ext = finalMime.includes("mp4")
+          ? "m4a"
+          : finalMime.includes("ogg")
+            ? "ogg"
+            : "webm";
+        await processAudio(audioBlob, ext);
+      };
+
+      mediaRecorder.start(250);
+      setIsRecording(true);
+      startAudioMonitoring(stream);
+
+      recordingTimerRef.current = window.setInterval(() => {
+        setRecordingDuration((prev) => {
+          const next = prev + 1;
+          // Auto-stop at 60 seconds to keep transcription quality high
+          if (next >= 60 && mediaRecorderRef.current?.state === "recording") {
+            mediaRecorderRef.current.stop();
+            setIsRecording(false);
+            if (recordingTimerRef.current !== null) {
+              window.clearInterval(recordingTimerRef.current);
+              recordingTimerRef.current = null;
+            }
+          }
+          return next;
+        });
+      }, 1000);
+    } catch {
+      setError(
+        "Tidak bisa akses mikrofon. Pastikan izin mic sudah diberikan ke browser.",
+      );
+    }
+  }
+
+  async function processAudio(audioBlob: Blob, ext: string = "webm") {
+    setIsTranscribing(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", audioBlob, `audio.${ext}`);
+
+      const res = await fetch("/api/transcribe", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null);
+        throw new Error(payload?.error || "Gagal melakukan transkripsi audio.");
+      }
+
+      const { text } = (await res.json()) as { text: string };
+      const cleaned = (text || "").trim();
+      if (cleaned) {
+        setDraft((prev) => (prev ? `${prev} ${cleaned}` : cleaned));
+        window.requestAnimationFrame(() => {
+          if (textareaRef.current) {
+            textareaRef.current.focus();
+            autoResize(textareaRef.current);
+          }
+        });
+      } else {
+        setError(
+          "Suara tidak terdengar jelas. Coba bicara lebih dekat ke mic dan ulangi.",
+        );
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Terjadi kesalahan saat memproses audio.",
+      );
+    } finally {
+      setIsTranscribing(false);
+    }
+  }
+
   return (
     <div className="app-layout">
       {/* Sidebar overlay on mobile */}
@@ -508,15 +731,39 @@ export default function Home() {
         />
       )}
 
-      {/* â”€â”€ LEFT SIDEBAR: Settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── LEFT SIDEBAR: Settings ────────────────────── */}
       <aside className={`sidebar panel-scroll ${sidebarOpen ? "is-open" : ""}`}>
         <div className="sidebar-header">
-          <h1 className="text-lg font-semibold leading-tight text-[#3a1f1a]">
-            UMKM Growth Copilot AI
-          </h1>
-          <p className="mt-1 text-xs text-[color:var(--muted)]">
-            AI tool untuk bantu UMKM bertumbuh lebih cepat.
-          </p>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h1 className="text-lg font-semibold leading-tight text-[#3a1f1a]">
+                UMKM Growth Copilot
+              </h1>
+              <p className="mt-1 text-xs text-[color:var(--muted)]">
+                AI tool untuk bantu UMKM bertumbuh lebih cepat.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="sidebar-close md:hidden"
+              onClick={() => setSidebarOpen(false)}
+              aria-label="Tutup sidebar"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
         </div>
         <div className="sidebar-content space-y-3">
           <p className="category-title">Konfigurasi AI</p>
@@ -580,30 +827,6 @@ export default function Home() {
           </label>
 
           <label className="block text-xs font-semibold text-[#5c342d]">
-            Bahasa Output
-            <div className="mt-1 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                className={`ui-btn ${settings.language === "id" ? "ui-btn-active" : "ui-btn-soft"}`}
-                onClick={() =>
-                  setSettings((prev) => ({ ...prev, language: "id" }))
-                }
-              >
-                Indonesia
-              </button>
-              <button
-                type="button"
-                className={`ui-btn ${settings.language === "en" ? "ui-btn-active" : "ui-btn-soft"}`}
-                onClick={() =>
-                  setSettings((prev) => ({ ...prev, language: "en" }))
-                }
-              >
-                English
-              </button>
-            </div>
-          </label>
-
-          <label className="block text-xs font-semibold text-[#5c342d]">
             Kreativitas ({settings.temperature.toFixed(1)})
             <input
               type="range"
@@ -628,7 +851,7 @@ export default function Home() {
         </div>
       </aside>
 
-      {/* â”€â”€ MAIN AREA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── MAIN AREA ──────────────────────────────────── */}
       <div className="main-area">
         {/* Chat Header */}
         <header className="chat-header">
@@ -637,18 +860,31 @@ export default function Home() {
               type="button"
               className="sidebar-toggle"
               onClick={() => setSidebarOpen((v) => !v)}
-              aria-label="Toggle sidebar"
+              aria-label="Buka pengaturan"
             >
-              â˜°
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
             </button>
-            <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-[#9d5b49]">
+            <div className="min-w-0">
+              <p className="hidden sm:block text-[10px] sm:text-xs uppercase tracking-[0.18em] text-[#9d5b49]">
                 Live AI Session
               </p>
-              <h2 className="text-base font-semibold text-[#2c1714] leading-tight">
+              <h2 className="text-sm sm:text-base font-semibold text-[#2c1714] leading-tight truncate">
                 {mode === "gambar"
-                  ? "Generator Visual Produk UMKM"
-                  : "Konsultasi Bisnis Berbasis Groq"}
+                  ? "Generator Visual UMKM"
+                  : "Konsultasi Bisnis AI"}
               </h2>
             </div>
           </div>
@@ -675,7 +911,7 @@ export default function Home() {
               type="button"
               onClick={copyLatestAnswer}
               title="Salin jawaban AI yang terakhir"
-              className={`ui-btn ui-btn-soft ${copied ? "ui-btn-active" : ""}`}
+              className={`ui-btn ui-btn-soft hidden sm:inline-flex ${copied ? "ui-btn-active" : ""}`}
             >
               {copied ? "✓ Tersalin" : "Copy"}
             </button>
@@ -683,7 +919,7 @@ export default function Home() {
               type="button"
               onClick={exportConversation}
               title="Unduh log percakapan dalam format Markdown"
-              className={`ui-btn ui-btn-soft ${exported ? "ui-btn-active" : ""}`}
+              className={`ui-btn ui-btn-soft hidden md:inline-flex ${exported ? "ui-btn-active" : ""}`}
             >
               {exported ? "✓" : "Export MD"}
             </button>
@@ -691,19 +927,21 @@ export default function Home() {
               type="button"
               onClick={clearConversation}
               title="Bersihkan riwayat obrolan"
-              className="ui-btn ui-btn-soft"
+              className="ui-btn ui-btn-soft hidden md:inline-flex"
             >
               Reset
             </button>
             <button
               type="button"
               className="ui-btn ui-btn-primary ui-btn-lg shadow-sm hover:shadow-md transition-shadow"
-              title="Buka panel template dan alat analitik (24 Fitur)"
+              title="Buka panel template dan alat analitik"
               onClick={() => {
                 setDrawerOpen(true);
               }}
             >
-              Fitur &amp; Tools <span className="feature-badge ml-1">24</span>
+              <span className="hidden sm:inline">Fitur &amp; Tools</span>
+              <span className="sm:hidden">Tools</span>
+              <span className="feature-badge ml-1">24</span>
             </button>
           </div>
         </header>
@@ -731,10 +969,10 @@ export default function Home() {
                 return (
                   <div
                     key={message.id}
-                    className="flex flex-col items-center justify-center py-12 md:py-20 text-center reveal"
+                    className="welcome-hero reveal"
                     style={{ animationDelay: `${Math.min(index * 40, 240)}ms` }}
                   >
-                    <div className="w-20 h-20 bg-gradient-to-tr from-[#be5d3d] to-[#e4a896] rounded-[2rem] rotate-3 flex items-center justify-center mb-6 shadow-xl shadow-[#be5d3d]/20 transition-transform hover:rotate-12 hover:scale-105 duration-300">
+                    <div className="welcome-icon" aria-hidden="true">
                       <svg
                         width="36"
                         height="36"
@@ -748,12 +986,43 @@ export default function Home() {
                         <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
                       </svg>
                     </div>
-                    <h3 className="text-xl md:text-2xl font-bold text-[#3a1f1a] mb-3">
-                      Sistem AI Siap Digunakan
+                    <h3 className="welcome-title">
+                      Halo, siap bantu UMKM Anda tumbuh
                     </h3>
-                    <p className="text-[#6a5250] max-w-md mx-auto text-sm md:text-base leading-relaxed">
-                      {message.content}
+                    <p className="welcome-desc">
+                      Pilih mode <strong>Chat</strong> untuk konsultasi
+                      strategi, atau <strong>Gambar</strong> untuk membuat
+                      visual promosi. Bisa juga rekam suara dengan tombol mic
+                      untuk pertanyaan cepat.
                     </p>
+                    <div className="welcome-quick-grid">
+                      {promptTemplates.slice(0, 4).map((template) => (
+                        <button
+                          key={template}
+                          type="button"
+                          className="welcome-quick-card"
+                          onClick={() => addTemplate(template)}
+                        >
+                          <span className="welcome-quick-icon">
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <polyline points="9 18 15 12 9 6" />
+                            </svg>
+                          </span>
+                          <span className="welcome-quick-text">
+                            {template}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 );
               }
@@ -761,14 +1030,17 @@ export default function Home() {
               return (
                 <article
                   key={message.id}
-                  className={`reveal message-card rounded-2xl p-4 shadow-sm backdrop-blur-md transition-all duration-300 hover:shadow-md ${
+                  className={`reveal message-card rounded-2xl p-3 sm:p-4 shadow-sm backdrop-blur-md transition-all duration-300 hover:shadow-md ${
                     message.role === "assistant"
-                      ? "mr-8 border border-[#dcb0a2]/50 bg-gradient-to-br from-[#fff9f3]/95 to-[#fdf2ea]/95"
-                      : "ml-8 border border-[#c7a190]/60 bg-gradient-to-bl from-[#ffe7d7]/95 to-[#ffdacc]/95"
+                      ? "mr-3 sm:mr-8 border border-[#dcb0a2]/50 bg-gradient-to-br from-[#fff9f3]/95 to-[#fdf2ea]/95"
+                      : "ml-3 sm:ml-8 border border-[#c7a190]/60 bg-gradient-to-bl from-[#ffe7d7]/95 to-[#ffdacc]/95"
                   }`}
                   style={{ animationDelay: `${Math.min(index * 40, 240)}ms` }}
                 >
-                  <p className="mb-1 text-xs uppercase tracking-[0.1em] text-[#7c5046]">
+                  <p className="mb-1.5 text-[10px] sm:text-xs uppercase tracking-[0.1em] text-[#7c5046] flex items-center gap-1.5">
+                    <span
+                      className={`inline-block w-1.5 h-1.5 rounded-full ${message.role === "assistant" ? "bg-[#be5d3d]" : "bg-[#7d4533]"}`}
+                    />
                     {message.role === "assistant" ? "AI Advisor" : "Anda"}
                   </p>
                   {messageIsImage ? (
@@ -811,98 +1083,112 @@ export default function Home() {
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
                         components={{
-                          p: ({ node, ...props }) => (
+                          p: (props) => (
                             <p
-                              className="mb-2 leading-relaxed whitespace-pre-wrap last:mb-0"
+                              className="mb-2 leading-relaxed whitespace-pre-wrap last:mb-0 break-words"
                               {...props}
                             />
                           ),
-                          strong: ({ node, ...props }) => (
+                          strong: (props) => (
                             <strong
                               className="font-bold text-[#4a2b28]"
                               {...props}
                             />
                           ),
-                          ul: ({ node, ...props }) => (
+                          ul: (props) => (
                             <ul
                               className="list-disc pl-5 mb-3 space-y-1"
                               {...props}
                             />
                           ),
-                          ol: ({ node, ...props }) => (
+                          ol: (props) => (
                             <ol
                               className="list-decimal pl-5 mb-3 space-y-1"
                               {...props}
                             />
                           ),
-                          li: ({ node, ...props }) => (
-                            <li className="" {...props} />
+                          li: (props) => (
+                            <li className="leading-relaxed" {...props} />
                           ),
-                          table: ({ node, ...props }) => (
-                            <div className="overflow-x-auto my-3 border border-[#dcb0a2] rounded-xl shadow-sm">
+                          table: (props) => (
+                            <div className="overflow-x-auto my-3 border border-[#dcb0a2] rounded-xl shadow-sm -mx-1 sm:mx-0">
                               <table
-                                className="min-w-full divide-y divide-[#dcb0a2] text-sm text-left"
+                                className="min-w-full divide-y divide-[#dcb0a2] text-xs sm:text-sm text-left"
                                 {...props}
                               />
                             </div>
                           ),
-                          thead: ({ node, ...props }) => (
+                          thead: (props) => (
                             <thead
                               className="bg-[#f4dcd4] text-[#4a2b28]"
                               {...props}
                             />
                           ),
-                          tbody: ({ node, ...props }) => (
+                          tbody: (props) => (
                             <tbody
                               className="divide-y divide-[#e4c9c1] bg-white/40"
                               {...props}
                             />
                           ),
-                          tr: ({ node, ...props }) => (
+                          tr: (props) => (
                             <tr
                               className="hover:bg-[#fff9f3]/60 transition-colors"
                               {...props}
                             />
                           ),
-                          th: ({ node, ...props }) => (
+                          th: (props) => (
                             <th
-                              className="px-3 py-2.5 font-semibold whitespace-nowrap"
+                              className="px-2 sm:px-3 py-2 font-semibold whitespace-nowrap"
                               {...props}
                             />
                           ),
-                          td: ({ node, ...props }) => (
+                          td: (props) => (
                             <td
-                              className="px-3 py-2 text-[#3a1f1a]"
+                              className="px-2 sm:px-3 py-2 text-[#3a1f1a]"
                               {...props}
                             />
                           ),
-                          h1: ({ node, ...props }) => (
+                          h1: (props) => (
                             <h1
-                              className="text-xl font-bold mt-4 mb-2 text-[#3a1f1a]"
+                              className="text-base sm:text-lg font-bold mt-3 mb-2 text-[#3a1f1a]"
                               {...props}
                             />
                           ),
-                          h2: ({ node, ...props }) => (
+                          h2: (props) => (
                             <h2
-                              className="text-lg font-bold mt-3 mb-2 text-[#3a1f1a]"
+                              className="text-[15px] sm:text-base font-bold mt-3 mb-1.5 text-[#3a1f1a]"
                               {...props}
                             />
                           ),
-                          h3: ({ node, ...props }) => (
+                          h3: (props) => (
                             <h3
-                              className="text-base font-bold mt-2 mb-1 text-[#3a1f1a]"
+                              className="text-sm font-bold mt-2 mb-1 text-[#3a1f1a]"
                               {...props}
                             />
                           ),
-                          code: ({ node, ...props }) => (
+                          code: (props) => (
                             <code
-                              className="bg-[#ffe8db] text-[#be5d3d] px-1.5 py-0.5 rounded text-xs"
+                              className="bg-[#ffe8db] text-[#be5d3d] px-1.5 py-0.5 rounded text-[0.78em]"
                               {...props}
                             />
                           ),
-                          pre: ({ node, ...props }) => (
+                          pre: (props) => (
                             <pre
                               className="bg-[#2e1815] text-[#fff0e4] p-3 rounded-xl overflow-x-auto my-3 text-xs"
+                              {...props}
+                            />
+                          ),
+                          blockquote: (props) => (
+                            <blockquote
+                              className="border-l-3 border-[#be5d3d] bg-[#fff4ec] pl-3 py-1 my-2 text-[#5a3530] italic rounded-r-md"
+                              {...props}
+                            />
+                          ),
+                          a: (props) => (
+                            <a
+                              className="text-[#be5d3d] underline underline-offset-2 hover:text-[#9d4a30] break-words"
+                              target="_blank"
+                              rel="noopener noreferrer"
                               {...props}
                             />
                           ),
@@ -929,7 +1215,89 @@ export default function Home() {
         {/* Compact Chat Input */}
         <div className="chat-input-bar">
           <form onSubmit={sendPrompt}>
-            <div className="chat-input-row">
+            {isRecording && (
+              <div className="recording-indicator" aria-live="polite">
+                <div className="recording-dot" />
+                <span className="recording-text">
+                  Merekam... {formatRecordingTime(recordingDuration)}
+                </span>
+                <div className="recording-bars" aria-hidden="true">
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <span
+                      key={i}
+                      className="recording-bar"
+                      style={{
+                        transform: `scaleY(${0.3 + Math.min(1, audioLevel * 2 + Math.random() * 0.15) * (1 - Math.abs(i - 2) * 0.18)})`,
+                      }}
+                    />
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={toggleRecording}
+                  className="recording-stop"
+                  aria-label="Hentikan rekaman"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
+                    <rect x="6" y="6" width="12" height="12" rx="2" />
+                  </svg>
+                </button>
+              </div>
+            )}
+            {isTranscribing && !isRecording && (
+              <div className="transcribing-indicator" aria-live="polite">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-[#cf704f]" />
+                <span>Mengubah suara jadi teks...</span>
+              </div>
+            )}
+            <div
+              className={`chat-input-row ${isRecording ? "is-recording" : ""}`}
+            >
+              <button
+                type="button"
+                onClick={toggleRecording}
+                disabled={isTranscribing}
+                className={`mic-btn ${isRecording ? "is-recording" : ""}`}
+                title={
+                  isRecording
+                    ? "Hentikan & transkripsi"
+                    : "Bicara untuk menulis pesan"
+                }
+                aria-label={
+                  isRecording ? "Hentikan rekaman" : "Mulai rekaman suara"
+                }
+              >
+                {isRecording ? (
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
+                    <rect x="6" y="6" width="12" height="12" rx="2" />
+                  </svg>
+                ) : (
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                    <line x1="12" y1="19" x2="12" y2="22" />
+                  </svg>
+                )}
+              </button>
               <textarea
                 ref={textareaRef}
                 value={draft}
@@ -940,15 +1308,20 @@ export default function Home() {
                 }}
                 onKeyDown={handleHotkey}
                 placeholder={
-                  mode === "gambar"
-                    ? "Deskripsikan visual promosi produk UMKM Anda..."
-                    : "Tanya strategi bisnis, pemasaran, keuangan..."
+                  isRecording
+                    ? "Sedang mendengarkan suara Anda..."
+                    : isTranscribing
+                      ? "Memproses suara..."
+                      : mode === "gambar"
+                        ? "Deskripsikan visual promosi produk Anda..."
+                        : "Tanya strategi bisnis, pemasaran, keuangan..."
                 }
                 className="chat-input-textarea"
+                disabled={isRecording}
               />
               <button
                 type="submit"
-                disabled={!draft.trim() || isLoading}
+                disabled={!draft.trim() || isLoading || isRecording}
                 className="chat-send-btn"
                 aria-label="Kirim"
               >
@@ -972,11 +1345,13 @@ export default function Home() {
               </button>
             </div>
             <div className="chat-input-meta">
-              <span>
-                {draft.length} karakter · Enter untuk kirim, Ctrl+Enter untuk
-                baris baru
+              <span className="hidden sm:inline">
+                {draft.length} karakter · Enter kirim, Shift+Enter baris baru
               </span>
-              {error && <span className="text-[#8f2f16]">{error}</span>}
+              <span className="sm:hidden">{draft.length} kar.</span>
+              {error && (
+                <span className="text-[#8f2f16] truncate ml-2">{error}</span>
+              )}
             </div>
           </form>
         </div>

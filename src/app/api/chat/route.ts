@@ -15,7 +15,6 @@ type GroqMessage = {
 type ChatSettings = {
   persona?: string;
   tone?: string;
-  language?: "id" | "en";
   responseLength?: "short" | "medium" | "long";
   temperature?: number;
   businessScale?: "mikro" | "kecil" | "menengah";
@@ -408,40 +407,11 @@ function getDetailedNumberedSteps(reply: string) {
     .slice(0, 8);
 }
 
-function buildComplaintSopReply(topic: string, language: "id" | "en") {
-  if (language === "en") {
-    return [
-      `Here is a practical SOP for ${topic}.`,
-      "",
-      "SOP Steps (detailed actions + PIC + SLA):",
-      "1. Receive the complaint with empathy, validate the issue, and collect core data (name, order number, proof photo). PIC: Customer Service. SLA: initial response within 5 minutes.",
-      "2. Classify the issue type (product, delivery, service, payment) and urgency level. PIC: Customer Service. SLA: within 10 minutes.",
-      "3. Verify the root cause with relevant teams (warehouse/cashier/courier) based on transaction data. PIC: Operations Admin. SLA: within 30 minutes.",
-      "4. Offer a clear solution (refund, replacement, resend, voucher) with a clear completion deadline. PIC: Customer Service + Supervisor. SLA: within 15 minutes after verification.",
-      "5. Execute the solution and confirm to the customer until they acknowledge resolution. PIC: Operations Team. SLA: as committed, typically < 24 hours.",
-      "6. Close the case by documenting root cause, compensation cost, and preventive action to avoid recurrence. PIC: Supervisor. SLA: report completed on the same day.",
-      "",
-      "Quick customer reply template:",
-      "Hi Kak, thank you for contacting us. We are sorry for the issue. Could you share your order number and product photo so we can process this right away? We will send the first update within 15 minutes.",
-      "",
-      "Complaint log template:",
-      "- Date/Time received:",
-      "- Customer name:",
-      "- Order number:",
-      "- Complaint channel (WA/IG/Marketplace):",
-      "- Issue type:",
-      "- Root cause:",
-      "- Selected solution:",
-      "- PIC:",
-      "- SLA commitment:",
-      "- Final status (resolved/pending):",
-    ].join("\n");
-  }
-
+function buildComplaintSopReply(topic: string) {
   return [
     `Berikut SOP praktis untuk ${topic}.`,
     "",
-    "Langkah SOP (detail tindakan + PIC + SLA):",
+    "**Langkah SOP (detail tindakan + PIC + SLA):**",
     "1. Terima komplain dengan empati, validasi keluhan, lalu minta data inti (nama, nomor order, foto bukti). PIC: CS. SLA: respon awal maksimal 5 menit.",
     "2. Klasifikasikan jenis masalah (produk, pengiriman, pelayanan, pembayaran) dan tingkat urgensi. PIC: CS. SLA: maksimal 10 menit.",
     "3. Verifikasi akar masalah ke tim terkait (gudang/kasir/kurir) berdasarkan data transaksi. PIC: Admin Operasional. SLA: maksimal 30 menit.",
@@ -449,10 +419,10 @@ function buildComplaintSopReply(topic: string, language: "id" | "en") {
     "5. Eksekusi solusi dan konfirmasi hasil ke pelanggan sampai pelanggan menyatakan masalah selesai. PIC: Tim Operasional. SLA: sesuai komitmen, umumnya < 24 jam.",
     "6. Tutup kasus dengan mencatat penyebab, biaya kompensasi, dan tindakan pencegahan agar komplain serupa tidak berulang. PIC: Supervisor. SLA: laporan selesai di hari yang sama.",
     "",
-    "Template respon cepat ke pelanggan:",
+    "**Template respon cepat ke pelanggan:**",
     "Halo Kak, terima kasih sudah menghubungi kami. Mohon maaf atas kendalanya. Boleh kirim nomor order dan foto produk agar kami proses sekarang? Kami targetkan update pertama dalam 15 menit.",
     "",
-    "Template log komplain:",
+    "**Template log komplain:**",
     "- Tanggal/Jam masuk:",
     "- Nama pelanggan:",
     "- Nomor order:",
@@ -466,34 +436,11 @@ function buildComplaintSopReply(topic: string, language: "id" | "en") {
   ].join("\n");
 }
 
-function buildGenericSopReply(topic: string, language: "id" | "en") {
-  if (language === "en") {
-    return [
-      `Here is a simple SOP for ${topic}.`,
-      "",
-      "SOP Steps (detailed actions + PIC + SLA):",
-      "1. Define SOP goals and measurable success indicators. PIC: Owner/Manager. SLA: 1 day.",
-      "2. Map the full workflow and identify error-prone points. PIC: Operations Supervisor. SLA: 1 day.",
-      "3. Define detailed step-by-step actions per role, including each step's input/output. PIC: Supervisor + Related Teams. SLA: 1 day.",
-      "4. Set service time standards (SLA), quality standards, and escalation rules for issues. PIC: Operations Manager. SLA: 1 day.",
-      "5. Pilot the SOP for 3-7 days, collect feedback, then revise ineffective parts. PIC: QA/Internal Control. SLA: 7 days.",
-      "6. Finalize SOP, train the team, and run a periodic review at least monthly. PIC: Owner/Manager. SLA: ongoing.",
-      "",
-      "SOP document template:",
-      "- SOP objective:",
-      "- Scope:",
-      "- PIC per step:",
-      "- SLA per step:",
-      "- Forms/checklists used:",
-      "- Escalation mechanism:",
-      "- Evaluation schedule:",
-    ].join("\n");
-  }
-
+function buildGenericSopReply(topic: string) {
   return [
     `Berikut SOP sederhana untuk ${topic}.`,
     "",
-    "Langkah SOP (detail tindakan + PIC + SLA):",
+    "**Langkah SOP (detail tindakan + PIC + SLA):**",
     "1. Tetapkan tujuan SOP dan indikator keberhasilan yang terukur. PIC: Owner/Manager. SLA: 1 hari.",
     "2. Petakan alur kerja dari awal sampai selesai dan titik rawan error. PIC: Supervisor Operasional. SLA: 1 hari.",
     "3. Definisikan langkah kerja rinci per peran, termasuk input/output tiap langkah. PIC: Supervisor + Tim terkait. SLA: 1 hari.",
@@ -501,7 +448,7 @@ function buildGenericSopReply(topic: string, language: "id" | "en") {
     "5. Uji coba SOP selama 3-7 hari, kumpulkan feedback, lalu revisi bagian yang tidak efektif. PIC: QA/Internal Control. SLA: 7 hari.",
     "6. Finalisasi SOP, sosialisasi ke tim, dan review berkala minimal bulanan. PIC: Owner/Manager. SLA: berkelanjutan.",
     "",
-    "Template dokumen SOP:",
+    "**Template dokumen SOP:**",
     "- Tujuan SOP:",
     "- Ruang lingkup:",
     "- PIC per langkah:",
@@ -515,7 +462,6 @@ function buildGenericSopReply(topic: string, language: "id" | "en") {
 function buildSopFocusedReply(
   reply: string,
   userMessage: string,
-  language: "id" | "en",
 ) {
   const topic = inferSopTopic(userMessage);
   const detailedSteps = getDetailedNumberedSteps(reply);
@@ -527,8 +473,8 @@ function buildSopFocusedReply(
   }
 
   return isComplaintSopRequest(userMessage)
-    ? buildComplaintSopReply(topic, language)
-    : buildGenericSopReply(topic, language);
+    ? buildComplaintSopReply(topic)
+    : buildGenericSopReply(topic);
 }
 
 function toGroqMessages(
@@ -622,7 +568,6 @@ export async function POST(request: Request) {
 
     const persona = settings.persona || "Konsultan pertumbuhan UMKM";
     const tone = settings.tone || "Aplikatif dan profesional";
-    const language = settings.language || "id";
     const responseLength = settings.responseLength || "medium";
     const businessScale = settings.businessScale || "mikro";
     const sector = settings.sector || "umum";
@@ -642,28 +587,77 @@ export async function POST(request: Request) {
       ? "Karena pengguna menyinggung analisis/KPI/risiko, kamu boleh menambah bagian tersebut secara ringkas."
       : "Jangan tambahkan bagian Analisis, KPI, Risiko, Mitigasi, atau Estimasi Dampak jika pengguna tidak memintanya secara eksplisit.";
 
-    const languageInstruction =
-      language === "en"
-        ? "WAJIB gunakan English untuk seluruh jawaban. Jangan gunakan Bahasa Indonesia kecuali nama brand/istilah lokal."
-        : "WAJIB gunakan Bahasa Indonesia yang sederhana dan mudah dipahami pelaku UMKM.";
+    // ── Persona-specific behavior ──────────────────────────────────────────
+    const personaBehavior: Record<string, string> = {
+      "Konsultan Pertumbuhan UMKM":
+        "Fokus pada strategi pertumbuhan omzet, akuisisi pelanggan baru, dan ekspansi pasar. Selalu sertakan metrik target yang terukur (angka, persentase, atau periode waktu) dalam setiap rekomendasi.",
+      "Spesialis Marketing Digital":
+        "Fokus pada strategi konten, iklan digital (Meta Ads, TikTok Ads, Google Ads), SEO marketplace, dan copywriting. Berikan contoh caption, hook, atau skrip iklan yang konkret dan siap pakai.",
+      "Mentor Operasional Toko":
+        "Fokus pada efisiensi operasional, SOP, manajemen stok, alur kerja kasir, dan pengurangan pemborosan. Berikan checklist atau prosedur langkah-demi-langkah yang bisa langsung ditempel di toko.",
+      "Advisor Keuangan Mikro":
+        "Fokus pada pengelolaan arus kas, pembukuan sederhana, analisis margin, BEP, dan perencanaan modal. Sertakan angka contoh dan rumus sederhana yang mudah dipahami pelaku UMKM tanpa latar belakang akuntansi.",
+    };
+    const personaInstruction =
+      personaBehavior[persona] ||
+      `Berikan saran sebagai ${persona} yang berpengalaman di bidang UMKM Indonesia.`;
+
+    // ── Tone-specific writing style ────────────────────────────────────────
+    const toneBehavior: Record<string, string> = {
+      "Aplikatif dan profesional":
+        "Gunakan bahasa semi-formal yang lugas. Hindari basa-basi. Setiap paragraf harus berisi satu aksi konkret yang bisa langsung dilakukan.",
+      "Santai dan memotivasi":
+        "Gunakan bahasa santai, hangat, dan penuh semangat seperti teman yang sudah berpengalaman. Boleh pakai kata 'Kak', 'yuk', 'nih'. Sisipkan kalimat motivasi singkat di akhir jawaban.",
+      "Data-driven dan tegas":
+        "Gunakan bahasa tegas dan berbasis data. Setiap klaim harus didukung angka, persentase, atau benchmark industri. Hindari kata-kata ambigu seperti 'mungkin' atau 'bisa jadi'. Gunakan format tabel jika ada perbandingan data.",
+      "Formal untuk presentasi investor":
+        "Gunakan bahasa formal dan terstruktur seperti laporan bisnis. Gunakan istilah bisnis yang tepat (ROI, CAC, LTV, runway, dll). Format jawaban dengan heading yang jelas dan data pendukung.",
+    };
+    const toneInstruction =
+      toneBehavior[tone] ||
+      `Gunakan gaya bahasa: ${tone}.`;
+
+    // ── Business scale context ─────────────────────────────────────────────
+    const scaleBehavior: Record<string, string> = {
+      mikro:
+        "Bisnis skala MIKRO (omzet < Rp 300 juta/tahun, karyawan 1-4 orang). Rekomendasikan solusi berbiaya rendah, bisa dikerjakan sendiri atau dengan 1-2 orang, dan tidak memerlukan sistem kompleks. Prioritaskan WhatsApp, Instagram organik, dan penjualan langsung.",
+      kecil:
+        "Bisnis skala KECIL (omzet Rp 300 juta – 2,5 miliar/tahun, karyawan 5-19 orang). Rekomendasikan solusi yang sudah bisa menggunakan tools digital berbayar (Meta Ads, Tokopedia/Shopee ads), sistem kasir sederhana, dan mulai membangun tim kecil.",
+      menengah:
+        "Bisnis skala MENENGAH (omzet Rp 2,5 miliar – 50 miliar/tahun, karyawan 20-99 orang). Rekomendasikan solusi enterprise-lite: CRM, ERP sederhana, multi-channel marketing, dan strategi ekspansi ke kota lain atau franchise.",
+    };
+    const scaleInstruction =
+      scaleBehavior[businessScale] ||
+      `Sesuaikan saran untuk bisnis skala ${businessScale}.`;
 
     const systemInstruction = `
-Kamu adalah ${persona} untuk pelaku UMKM Indonesia.
-Gaya jawaban: ${tone}.
-Bahasa output: ${language === "id" ? "Bahasa Indonesia" : "English"}.
-Skala bisnis pengguna: ${businessScale}.
-Sektor bisnis pengguna: ${sector}.
+Kamu adalah ${persona} — konsultan bisnis berpengalaman khusus untuk pelaku UMKM Indonesia.
+Seluruh jawaban WAJIB dalam Bahasa Indonesia yang mudah dipahami.
 
-Aturan jawaban:
-1. Jawaban harus konkret, bisa dieksekusi, dan berdampak pada peningkatan omzet atau efisiensi.
-2. ${languageInstruction}
-3. Jangan ulangi salam/perkenalan jika percakapan sudah berjalan.
-4. Gunakan markdown untuk memformat jawaban secara profesional (misal: tabel jika relevan, *bold* untuk poin penting).
-5. ${responseModeInstruction}
-6. ${optionalSectionInstruction}
-7. Jika pengguna meminta strategi dengan periode waktu (contoh: 14 hari), berikan rencana terjadwal sesuai periode tersebut.
-8. Hindari jawaban terlalu umum dan hindari pengantar panjang yang tidak diminta.
-9. ${responseLengthGuidance(responseLength)}
+## Konteks Bisnis Pengguna
+- **Sektor usaha:** ${sector}
+- **Skala bisnis:** ${businessScale}
+- ${scaleInstruction}
+
+## Peran & Keahlian Kamu
+${personaInstruction}
+
+## Gaya Penulisan
+${toneInstruction}
+
+## Aturan Format
+- Paragraf pendek (maks 2-3 kalimat per paragraf).
+- Gunakan **bold** untuk poin penting dan sub-judul — JANGAN gunakan heading # atau ## besar.
+- Gunakan list bernomor untuk langkah berurutan, bullet "-" untuk daftar opsi.
+- Tabel hanya jika ada perbandingan data multi-kolom; jika cukup dengan list, pakai list.
+- Jangan ulangi salam/perkenalan jika percakapan sudah berjalan.
+- Hindari disclaimer panjang dan pengantar yang tidak diminta.
+
+## Instruksi Konten
+- ${responseModeInstruction}
+- ${optionalSectionInstruction}
+- Jika ada periode waktu (misal: 14 hari), buat rencana terjadwal yang scannable.
+- ${responseLengthGuidance(responseLength)}
 `.trim();
 
     const groqMessages = toGroqMessages(
@@ -717,7 +711,7 @@ Aturan jawaban:
       : stripUnrequestedAnalyticalSections(cleanedReply);
     const finalReply =
       sopRequest && !analyticalSectionsRequested
-        ? buildSopFocusedReply(strippedReply, message, language)
+        ? buildSopFocusedReply(strippedReply, message)
         : strippedReply;
 
     return NextResponse.json({ reply: finalReply });
