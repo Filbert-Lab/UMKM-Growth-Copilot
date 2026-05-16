@@ -11,16 +11,16 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { AdvancedTools } from "./advanced-tools";
-import { ImageAnalyzer } from "./image-analyzer";
 
 type ChatRole = "user" | "assistant";
 type ChatMode = "chat" | "gambar";
-type DrawerTab = "templates" | "tools" | "analisis";
+type DrawerTab = "templates" | "tools";
 
 type ChatMessage = {
   id: string;
   role: ChatRole;
   content: string;
+  imageUrl?: string; // Cloudinary URL gambar yang dikirim user
   createdAt: string;
 };
 
@@ -226,6 +226,11 @@ export default function Home() {
   const requestLockRef = useRef(false);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const [attachedImage, setAttachedImage] = useState<{
+    file: File;
+    previewUrl: string;
+  } | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
@@ -348,7 +353,8 @@ export default function Home() {
     event?.preventDefault();
 
     const trimmed = draft.trim();
-    if (!trimmed || isLoading || requestLockRef.current) {
+    // Boleh kirim tanpa teks jika ada gambar terlampir
+    if ((!trimmed && !attachedImage) || isLoading || requestLockRef.current) {
       return;
     }
 
@@ -356,12 +362,12 @@ export default function Home() {
       .reverse()
       .find((item) => item.role === "user");
 
-    if (lastUserMessage) {
+    if (lastUserMessage && trimmed) {
       const sameContent =
         lastUserMessage.content.trim().toLowerCase() ===
         trimmed.trim().toLowerCase();
       const ageMs = Date.now() - new Date(lastUserMessage.createdAt).getTime();
-      if (sameContent && ageMs < 2500) {
+      if (sameContent && ageMs < 2500 && !attachedImage) {
         setError("Prompt yang sama baru saja terkirim. Tunggu sebentar.");
         return;
       }
@@ -372,45 +378,135 @@ export default function Home() {
     const userMessage: ChatMessage = {
       id: createId(),
       role: "user",
-      content: trimmed,
+      content: trimmed || "Analisis gambar ini.",
+      imageUrl: attachedImage ? attachedImage.previewUrl : undefined,
       createdAt: new Date().toISOString(),
     };
 
     const nextHistory = [...messages, userMessage];
     setMessages(nextHistory);
     setDraft("");
+    const imageToSend = attachedImage;
+    setAttachedImage(null);
+    if (imageInputRef.current) imageInputRef.current.value = "";
     setIsLoading(true);
     setError(null);
 
-    const isImageMode = mode === "gambar";
-    const endpoint = isImageMode ? "/api/generate-image" : "/api/chat";
+    // ── Mode gambar (generate image) ──────────────────────────────────────
+    if (mode === "gambar" && !imageToSend) {
+      try {
+        const response = await fetch("/api/generate-image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: trimmed }),
+        });
+
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => null)) as {
+            error?: string;
+          } | null;
+          throw new Error(payload?.error || "Gagal memproses permintaan.");
+        }
+
+        const payload = (await response.json()) as { reply: string };
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: createId(),
+            role: "assistant",
+            content: payload.reply,
+            createdAt: new Date().toISOString(),
+          },
+        ]);
+      } catch (caughtError) {
+        setError(
+          caughtError instanceof Error
+            ? caughtError.message
+            : "Terjadi kendala koneksi ke layanan AI.",
+        );
+      } finally {
+        setIsLoading(false);
+        requestLockRef.current = false;
+      }
+      return;
+    }
+
+    // ── Mode chat dengan gambar ───────────────────────────────────────────
+    if (imageToSend) {
+      try {
+        const formData = new FormData();
+        formData.append("file", imageToSend.file);
+        formData.append("message", trimmed);
+
+        const response = await fetch("/api/chat-with-image", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => null)) as {
+            error?: string;
+          } | null;
+          throw new Error(payload?.error || "Gagal menganalisis gambar.");
+        }
+
+        const payload = (await response.json()) as {
+          reply: string;
+          imageUrl: string;
+        };
+
+        // Update pesan user dengan Cloudinary URL (ganti preview lokal)
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === userMessage.id
+              ? { ...m, imageUrl: payload.imageUrl }
+              : m,
+          ),
+        );
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: createId(),
+            role: "assistant",
+            content: payload.reply,
+            createdAt: new Date().toISOString(),
+          },
+        ]);
+      } catch (caughtError) {
+        setError(
+          caughtError instanceof Error
+            ? caughtError.message
+            : "Terjadi kendala saat menganalisis gambar.",
+        );
+      } finally {
+        setIsLoading(false);
+        requestLockRef.current = false;
+      }
+      return;
+    }
+
+    // ── Mode chat teks biasa ──────────────────────────────────────────────
     const chatHistory = nextHistory.map((msg) => {
-      if (isImageDataUrl(msg.content)) {
+      if (isImageDataUrl(msg.content) || msg.imageUrl) {
         return {
           ...msg,
           content:
-            "[Sistem: Gambar telah berhasil dibuat dan ditampilkan kepada pengguna berdasarkan instruksi pengguna sebelumnya. Jika pengguna bertanya tentang gambar ini, jelaskan asumsi visual dari konsep gambar yang dibuat berdasarkan prompt pengguna.]",
+            "[Sistem: Pengguna sebelumnya mengirim gambar dan AI sudah merespons. Lanjutkan percakapan sesuai konteks.]",
         };
       }
       return msg;
     });
-    const requestPayload = isImageMode
-      ? JSON.stringify({
-          prompt: trimmed,
-        })
-      : JSON.stringify({
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           message: trimmed,
           settings,
           history: chatHistory.slice(-10),
-        });
-
-    try {
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: requestPayload,
+        }),
       });
 
       if (!response.ok) {
@@ -421,24 +517,49 @@ export default function Home() {
       }
 
       const payload = (await response.json()) as { reply: string };
-      const assistantMessage: ChatMessage = {
-        id: createId(),
-        role: "assistant",
-        content: payload.reply,
-        createdAt: new Date().toISOString(),
-      };
-
-      setMessages((prev) => [...prev, assistantMessage]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: createId(),
+          role: "assistant",
+          content: payload.reply,
+          createdAt: new Date().toISOString(),
+        },
+      ]);
     } catch (caughtError) {
-      const errorMessage =
+      setError(
         caughtError instanceof Error
           ? caughtError.message
-          : "Terjadi kendala koneksi ke layanan AI.";
-      setError(errorMessage);
+          : "Terjadi kendala koneksi ke layanan AI.",
+      );
     } finally {
       setIsLoading(false);
       requestLockRef.current = false;
     }
+  }
+
+  function handleImageAttach(file: File) {
+    const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (!allowed.includes(file.type)) {
+      setError("Format tidak didukung. Gunakan JPG, PNG, atau WebP.");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setError("Ukuran file terlalu besar. Maksimal 10 MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setAttachedImage({ file, previewUrl: e.target?.result as string });
+    };
+    reader.readAsDataURL(file);
+    // Focus textarea so user can type their question
+    window.requestAnimationFrame(() => textareaRef.current?.focus());
+  }
+
+  function removeAttachedImage() {
+    setAttachedImage(null);
+    if (imageInputRef.current) imageInputRef.current.value = "";
   }
 
   function addTemplate(text: string) {
@@ -1081,6 +1202,29 @@ export default function Home() {
                       </div>
                     </button>
                   ) : (
+                    <>
+                      {/* Gambar yang dilampirkan user */}
+                      {message.imageUrl && (
+                        <button
+                          onClick={() =>
+                            setZoomedImage({ url: message.imageUrl!, id: message.id })
+                          }
+                          className="relative block mb-2 w-full max-w-xs group overflow-hidden rounded-xl shadow-sm border border-[#d6a698] cursor-zoom-in"
+                          title="Klik untuk memperbesar"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={message.imageUrl}
+                            alt="Gambar terlampir"
+                            className="w-full max-h-48 object-cover transition-transform duration-300 group-hover:scale-105"
+                          />
+                          <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+                            <span className="bg-white/90 text-[#be5d3d] text-xs font-semibold px-2 py-1 rounded-full">
+                              Zoom
+                            </span>
+                          </div>
+                        </button>
+                      )}
                     <div className="text-sm text-[#2e1815]">
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
@@ -1199,6 +1343,7 @@ export default function Home() {
                         {message.content}
                       </ReactMarkdown>
                     </div>
+                    </>
                   )}
                 </article>
               );
@@ -1208,6 +1353,8 @@ export default function Home() {
                 <span className="h-2 w-2 animate-pulse rounded-full bg-[#cf704f]" />
                 {mode === "gambar"
                   ? "AI sedang membuat visual promosi..."
+                  : attachedImage
+                  ? "Groq AI sedang menganalisis gambar..."
                   : "AI sedang menyusun rekomendasi..."}
               </div>
             )}
@@ -1216,7 +1363,47 @@ export default function Home() {
 
         {/* Compact Chat Input */}
         <div className="chat-input-bar">
+          {/* Hidden file input */}
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleImageAttach(file);
+            }}
+          />
+
           <form onSubmit={sendPrompt}>
+            {/* Image preview strip */}
+            {attachedImage && (
+              <div className="flex items-center gap-2 mb-2 px-1">
+                <div className="relative flex-shrink-0">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={attachedImage.previewUrl}
+                    alt="Gambar terlampir"
+                    className="h-14 w-14 rounded-xl object-cover border border-[#d6a698] shadow-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={removeAttachedImage}
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-[#be5d3d] text-white flex items-center justify-center shadow-sm hover:bg-[#9d4a30] transition-colors"
+                    aria-label="Hapus gambar"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </div>
+                <p className="text-xs text-[#7c5046] leading-tight">
+                  <span className="font-semibold text-[#3a1f1a]">Gambar terlampir</span><br />
+                  Ketik pertanyaanmu atau langsung kirim
+                </p>
+              </div>
+            )}
+
             {isRecording && (
               <div className="recording-indicator" aria-live="polite">
                 <div className="recording-dot" />
@@ -1300,6 +1487,32 @@ export default function Home() {
                   </svg>
                 )}
               </button>
+              {/* Image attach button — only in chat mode */}
+              {mode === "chat" && (
+                <button
+                  type="button"
+                  onClick={() => imageInputRef.current?.click()}
+                  disabled={isLoading || isRecording || !!attachedImage}
+                  className="mic-btn flex-shrink-0"
+                  title="Lampirkan gambar untuk dianalisis AI"
+                  aria-label="Lampirkan gambar"
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <polyline points="21 15 16 10 5 21" />
+                  </svg>
+                </button>
+              )}
               <textarea
                 ref={textareaRef}
                 value={draft}
@@ -1314,6 +1527,8 @@ export default function Home() {
                     ? "Sedang mendengarkan suara Anda..."
                     : isTranscribing
                       ? "Memproses suara..."
+                      : attachedImage
+                      ? "Tanya apa saja tentang gambar ini... (opsional)"
                       : mode === "gambar"
                         ? "Deskripsikan visual promosi produk Anda..."
                         : "Tanya strategi bisnis, pemasaran, keuangan..."
@@ -1323,7 +1538,7 @@ export default function Home() {
               />
               <button
                 type="submit"
-                disabled={!draft.trim() || isLoading || isRecording}
+                disabled={(!draft.trim() && !attachedImage) || isLoading || isRecording}
                 className="chat-send-btn"
                 aria-label="Kirim"
               >
@@ -1394,13 +1609,6 @@ export default function Home() {
             onClick={() => setDrawerTab("tools")}
           >
             Alat Analitik
-          </button>
-          <button
-            type="button"
-            className={`tab-btn ${drawerTab === "analisis" ? "is-active" : ""}`}
-            onClick={() => setDrawerTab("analisis")}
-          >
-            Analisis Gambar
           </button>
         </div>
 
@@ -1485,16 +1693,6 @@ export default function Home() {
                 setDrawerOpen(false);
               }}
             />
-          )}
-
-          {drawerTab === "analisis" && (
-            <div>
-              <p className="category-title mb-3">Analisis Gambar dengan AI</p>
-              <p className="text-xs text-[#6f4f4a] mb-4">
-                Unggah foto produk atau nota struk. AI akan menganalisis dan mengekstrak informasi penting secara otomatis.
-              </p>
-              <ImageAnalyzer />
-            </div>
           )}
         </div>
       </div>
