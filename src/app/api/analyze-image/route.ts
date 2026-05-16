@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { v2 as cloudinary } from "cloudinary";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -32,6 +31,10 @@ type CloudinaryUploadResult = {
   public_id: string;
 };
 
+// Groq vision model — supports image_url content parts
+const GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
+const GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions";
+
 // ── Cloudinary config ──────────────────────────────────────────────────────
 
 cloudinary.config({
@@ -42,36 +45,6 @@ cloudinary.config({
 });
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-
-async function uploadToCloudinary(
-  fileBuffer: Buffer,
-  mimeType: string,
-): Promise<CloudinaryUploadResult> {
-  return new Promise((resolve, reject) => {
-    const uploadStream = cloudinary.uploader.upload_stream(
-      {
-        folder: "umkm-growth-copilot",
-        resource_type: "image",
-        format: "jpg",
-        transformation: [{ quality: "auto:good", fetch_format: "auto" }],
-      },
-      (error, result) => {
-        if (error || !result) {
-          reject(error ?? new Error("Cloudinary upload gagal tanpa error."));
-          return;
-        }
-        resolve(result as CloudinaryUploadResult);
-      },
-    );
-
-    // Convert buffer to base64 data URI and pipe it
-    const base64 = fileBuffer.toString("base64");
-    const dataUri = `data:${mimeType};base64,${base64}`;
-
-    // Use upload with data URI instead of stream for reliability
-    uploadStream.end(Buffer.from(dataUri));
-  });
-}
 
 async function uploadBase64ToCloudinary(
   base64Data: string,
@@ -86,102 +59,145 @@ async function uploadBase64ToCloudinary(
   return result as CloudinaryUploadResult;
 }
 
-function buildGeminiPrompt(analysisType: string): string {
+function buildSystemPrompt(analysisType: string): string {
+  const base =
+    "Kamu adalah asisten AI untuk UMKM Indonesia. " +
+    "Selalu kembalikan HANYA JSON valid — tanpa markdown, tanpa penjelasan, tanpa teks di luar JSON.";
+
   if (analysisType === "nota") {
-    return `Kamu adalah asisten AI untuk UMKM Indonesia. Analisis gambar nota/struk/invoice ini dan ekstrak datanya ke format JSON.
-
-Kembalikan HANYA JSON valid (tanpa markdown, tanpa penjelasan) dengan struktur:
-{
-  "type": "nota",
-  "summary": "Ringkasan singkat nota ini (1-2 kalimat)",
-  "rawText": "Teks lengkap yang terbaca dari nota",
-  "items": [
-    {
-      "nama": "nama item/produk",
-      "qty": angka_atau_null,
-      "harga_satuan": angka_atau_null,
-      "subtotal": angka_atau_null
-    }
-  ]
-}
-
-Aturan:
-- Semua nilai harga dalam angka integer (tanpa Rp, titik, atau koma)
-- Jika nilai tidak terbaca, gunakan null
-- Ekstrak semua item yang terlihat di nota`;
-  }
-
-  if (analysisType === "produk") {
-    return `Kamu adalah konsultan marketing UMKM Indonesia. Analisis gambar produk ini dan berikan insight bisnis dalam format JSON.
-
-Kembalikan HANYA JSON valid (tanpa markdown, tanpa penjelasan) dengan struktur:
-{
-  "type": "produk",
-  "summary": "Deskripsi singkat produk yang terlihat (1-2 kalimat)",
-  "productInfo": {
-    "nama_produk": "nama produk yang teridentifikasi",
-    "kategori": "kategori produk (Kuliner/Fashion/Elektronik/dll)",
-    "deskripsi": "deskripsi produk yang menarik untuk listing marketplace",
-    "estimasi_harga": "estimasi range harga jual yang wajar di pasar Indonesia",
-    "saran_marketing": [
-      "saran marketing 1 yang spesifik dan actionable",
-      "saran marketing 2",
-      "saran marketing 3"
-    ]
-  }
-}`;
-  }
-
-  // Default / umum
-  return `Kamu adalah asisten AI untuk UMKM Indonesia. Analisis gambar ini dan berikan insight bisnis yang relevan dalam format JSON.
-
-Kembalikan HANYA JSON valid (tanpa markdown, tanpa penjelasan) dengan struktur:
-{
-  "type": "umum",
-  "summary": "Deskripsi lengkap tentang apa yang terlihat di gambar dan relevansinya untuk UMKM (2-3 kalimat)",
-  "rawText": "Teks apapun yang terbaca dari gambar (kosongkan jika tidak ada teks)"
-}`;
-}
-
-async function analyzeWithGemini(
-  imageUrl: string,
-  analysisType: string,
-): Promise<AnalysisResult> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error(
-      "GEMINI_API_KEY belum diset. Tambahkan di .env.local atau Vercel.",
+    return (
+      base +
+      "\n\nTugasmu: analisis gambar nota/struk/invoice dan ekstrak datanya." +
+      "\n\nStruktur JSON yang WAJIB dikembalikan:\n" +
+      JSON.stringify(
+        {
+          type: "nota",
+          summary: "Ringkasan singkat nota ini (1-2 kalimat)",
+          rawText: "Teks lengkap yang terbaca dari nota",
+          items: [
+            {
+              nama: "nama item/produk",
+              qty: "angka atau null",
+              harga_satuan: "angka integer atau null",
+              subtotal: "angka integer atau null",
+            },
+          ],
+        },
+        null,
+        2,
+      ) +
+      "\n\nAturan: semua harga sebagai integer (tanpa Rp/titik/koma). Jika tidak terbaca, gunakan null."
     );
   }
 
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
-  // Fetch image from Cloudinary URL and convert to base64 for Gemini
-  const imageResponse = await fetch(imageUrl);
-  if (!imageResponse.ok) {
-    throw new Error("Gagal mengambil gambar dari Cloudinary untuk analisis.");
+  if (analysisType === "produk") {
+    return (
+      base +
+      "\n\nTugasmu: analisis gambar produk dan berikan insight bisnis." +
+      "\n\nStruktur JSON yang WAJIB dikembalikan:\n" +
+      JSON.stringify(
+        {
+          type: "produk",
+          summary: "Deskripsi singkat produk yang terlihat (1-2 kalimat)",
+          productInfo: {
+            nama_produk: "nama produk yang teridentifikasi",
+            kategori: "kategori produk (Kuliner/Fashion/Elektronik/dll)",
+            deskripsi: "deskripsi produk menarik untuk listing marketplace",
+            estimasi_harga: "estimasi range harga jual wajar di pasar Indonesia",
+            saran_marketing: [
+              "saran marketing 1 yang spesifik dan actionable",
+              "saran marketing 2",
+              "saran marketing 3",
+            ],
+          },
+        },
+        null,
+        2,
+      )
+    );
   }
-  const imageBuffer = await imageResponse.arrayBuffer();
-  const base64Image = Buffer.from(imageBuffer).toString("base64");
-  const mimeType = imageResponse.headers.get("content-type") || "image/jpeg";
 
-  const prompt = buildGeminiPrompt(analysisType);
-
-  const result = await model.generateContent([
-    prompt,
-    {
-      inlineData: {
-        data: base64Image,
-        mimeType: mimeType as "image/jpeg" | "image/png" | "image/webp",
+  // umum
+  return (
+    base +
+    "\n\nTugasmu: analisis gambar ini dan berikan insight bisnis yang relevan untuk UMKM." +
+    "\n\nStruktur JSON yang WAJIB dikembalikan:\n" +
+    JSON.stringify(
+      {
+        type: "umum",
+        summary:
+          "Deskripsi lengkap tentang apa yang terlihat dan relevansinya untuk UMKM (2-3 kalimat)",
+        rawText: "Teks apapun yang terbaca dari gambar, atau string kosong jika tidak ada",
       },
+      null,
+      2,
+    )
+  );
+}
+
+async function analyzeWithGroq(
+  imageUrl: string,
+  analysisType: string,
+): Promise<AnalysisResult> {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) {
+    throw new Error(
+      "GROQ_API_KEY belum diset. Tambahkan di .env.local atau Vercel.",
+    );
+  }
+
+  const systemPrompt = buildSystemPrompt(analysisType);
+
+  const response = await fetch(GROQ_CHAT_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
     },
-  ]);
+    body: JSON.stringify({
+      model: GROQ_VISION_MODEL,
+      temperature: 0.1, // low temp for structured extraction
+      max_tokens: 1024,
+      messages: [
+        {
+          role: "system",
+          content: systemPrompt,
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "image_url",
+              image_url: { url: imageUrl },
+            },
+            {
+              type: "text",
+              text: "Analisis gambar ini sesuai instruksi sistem dan kembalikan JSON.",
+            },
+          ],
+        },
+      ],
+    }),
+  });
 
-  const responseText = result.response.text().trim();
+  if (!response.ok) {
+    const errBody = (await response.json().catch(() => null)) as {
+      error?: { message?: string };
+    } | null;
+    const msg =
+      errBody?.error?.message ??
+      `Groq Vision API gagal dengan status ${response.status}.`;
+    throw new Error(msg);
+  }
 
-  // Strip markdown code fences if present
-  const cleaned = responseText
+  const payload = (await response.json()) as {
+    choices?: Array<{ message?: { content?: string } }>;
+  };
+
+  const raw = payload.choices?.[0]?.message?.content?.trim() ?? "";
+
+  // Strip markdown code fences if the model wraps the JSON
+  const cleaned = raw
     .replace(/^```json\s*/i, "")
     .replace(/^```\s*/i, "")
     .replace(/\s*```$/i, "")
@@ -195,7 +211,7 @@ async function analyzeWithGemini(
 
 export async function POST(request: Request) {
   try {
-    // Validate env vars early
+    // Validate Cloudinary env vars early
     if (
       !process.env.CLOUDINARY_CLOUD_NAME ||
       !process.env.CLOUDINARY_API_KEY ||
@@ -204,66 +220,55 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            "Konfigurasi Cloudinary belum lengkap. Periksa CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, dan CLOUDINARY_API_SECRET di .env.local.",
+            "Konfigurasi Cloudinary belum lengkap. Periksa CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, dan CLOUDINARY_API_SECRET.",
         },
         { status: 500 },
       );
     }
 
     const contentType = request.headers.get("content-type") ?? "";
-    let fileBuffer: Buffer;
-    let mimeType: string;
-    let analysisType = "umum";
 
-    if (contentType.includes("multipart/form-data")) {
-      const formData = await request.formData();
-      const file = formData.get("file") as File | null;
-      const type = formData.get("analysisType") as string | null;
-
-      if (!file) {
-        return NextResponse.json(
-          { error: "File gambar tidak ditemukan dalam request." },
-          { status: 400 },
-        );
-      }
-
-      const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-      if (!allowedTypes.includes(file.type)) {
-        return NextResponse.json(
-          {
-            error:
-              "Format file tidak didukung. Gunakan JPG, PNG, atau WebP.",
-          },
-          { status: 400 },
-        );
-      }
-
-      // 10 MB limit
-      if (file.size > 10 * 1024 * 1024) {
-        return NextResponse.json(
-          { error: "Ukuran file terlalu besar. Maksimal 10 MB." },
-          { status: 400 },
-        );
-      }
-
-      const arrayBuffer = await file.arrayBuffer();
-      fileBuffer = Buffer.from(arrayBuffer);
-      mimeType = file.type;
-      analysisType = type ?? "umum";
-    } else {
+    if (!contentType.includes("multipart/form-data")) {
       return NextResponse.json(
         { error: "Content-Type harus multipart/form-data." },
         { status: 400 },
       );
     }
 
+    const formData = await request.formData();
+    const file = formData.get("file") as File | null;
+    const analysisType = (formData.get("analysisType") as string | null) ?? "umum";
+
+    if (!file) {
+      return NextResponse.json(
+        { error: "File gambar tidak ditemukan dalam request." },
+        { status: 400 },
+      );
+    }
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (!allowedTypes.includes(file.type)) {
+      return NextResponse.json(
+        { error: "Format file tidak didukung. Gunakan JPG, PNG, atau WebP." },
+        { status: 400 },
+      );
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      return NextResponse.json(
+        { error: "Ukuran file terlalu besar. Maksimal 10 MB." },
+        { status: 400 },
+      );
+    }
+
     // Step 1: Upload to Cloudinary
-    const base64Data = fileBuffer.toString("base64");
-    const cloudinaryResult = await uploadBase64ToCloudinary(base64Data, mimeType);
+    const arrayBuffer = await file.arrayBuffer();
+    const base64Data = Buffer.from(arrayBuffer).toString("base64");
+    const cloudinaryResult = await uploadBase64ToCloudinary(base64Data, file.type);
     const imageUrl = cloudinaryResult.secure_url;
 
-    // Step 2: Analyze with Gemini Vision
-    const analysisResult = await analyzeWithGemini(imageUrl, analysisType);
+    // Step 2: Analyze with Groq Vision (Llama 4 Scout)
+    const analysisResult = await analyzeWithGroq(imageUrl, analysisType);
 
     return NextResponse.json({
       success: true,
